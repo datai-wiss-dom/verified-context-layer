@@ -21,8 +21,8 @@ mv .claude/current/* docs/archive/
 
 # Step 2 — fill in 3 files for new lesson
 # Edit these directly in IntelliJ:
-.claude/current/lesson.md    ← paste your L10 notes
-.claude/current/exercise.md  ← paste Udacity requirements
+.claude/current/concept.md    ← paste your L10 notes
+.claude/current/challenge.md  ← paste Udacity requirements
 .claude/current/plan.md      ← write your implementation steps
 
 # Step 3 — update one line in CLAUDE.md
@@ -140,8 +140,8 @@ def write_claude_md():
         f"- Lesson: {CURRENT_LESSON}\n"
         f"- Status: In progress\n\n"
         f"## Active Context (read these for current work)\n"
-        f"@.claude/current/lesson.md\n"
-        f"@.claude/current/exercise.md\n"
+        f"@.claude/current/concept.md\n"
+        f"@.claude/current/challenge.md\n"
         f"@.claude/current/plan.md\n\n"
         f"## Handoff from Antigravity\n"
         f"If HANDOFF.md exists at project root, read it first.\n"
@@ -206,8 +206,8 @@ def write_gemini_md():
         "- Auth: ADC (gcloud auth application-default login)\n"
         "\n"
         "## Current Work\n"
-        "See .claude/current/lesson.md for active lesson context.\n"
-        "See .claude/current/exercise.md for what we are building.\n"
+        "See .claude/current/concept.md for active lesson context.\n"
+        "See .claude/current/challenge.md for what we are building.\n"
         "\n"
         "## Preferred Patterns\n"
         "- ADK agents via agents-cli, not manual boilerplate\n"
@@ -235,8 +235,8 @@ def write_current_lesson():
     print("\n── Writing .claude/current/ (warm context) ──")
     current = PROJECT_ROOT / ".claude" / "current"
 
-    # lesson.md — concepts
-    write(current / "lesson.md", (
+    # concept.md — concepts
+    write(current / "concept.md", (
         "# L9 — Prompt Chaining: Key Concepts\n"
         "\n"
         "## What prompt chaining is in ADK\n"
@@ -249,8 +249,8 @@ def write_current_lesson():
         "- `InvocationContext` — carries state between steps\n"
     ).encode('utf-8'))
 
-    # exercise.md — what to build
-    write(current / "exercise.md", (
+    # challenge.md — what to build
+    write(current / "challenge.md", (
         "# L9 Exercise Requirements\n"
         "\n"
         "## Goal\n"
@@ -1227,8 +1227,8 @@ def write_ops_md():
         b"Prompt to use every time:\n"
         b"\n"
         b"```\n"
-        b"Implement the exercise following .claude/current/lesson.md,\n"
-        b".claude/current/exercise.md and .claude/current/plan.md.\n"
+        b"Implement the exercise following .claude/current/concept.md,\n"
+        b".claude/current/challenge.md and .claude/current/plan.md.\n"
         b"Read the existing starter code first before writing anything.\n"
         b"```\n"
         b"\n"
@@ -1588,8 +1588,8 @@ def write_skill_readme_md():
         b"\n"
         b"```\n"
         b"Implement the exercise following\n"
-        b".claude/current/lesson.md,\n"
-        b".claude/current/exercise.md and\n"
+        b".claude/current/concept.md,\n"
+        b".claude/current/challenge.md and\n"
         b".claude/current/plan.md.\n"
         b"Read the existing starter code first before\n"
         b"writing anything.\n"

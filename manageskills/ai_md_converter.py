@@ -59,7 +59,7 @@ except ImportError:
 
 SYSTEM_PROMPTS = {
     "lesson": """
-You convert raw Udacity lesson notes into a compressed lesson.md for Claude Code context.
+You convert raw Udacity lesson notes into a compressed concept.md for Claude Code context.
 
 OUTPUT FORMAT - use exactly this structure with proper markdown:
 
@@ -96,7 +96,7 @@ RULES:
 """,
 
     "exercise": """
-You convert raw Udacity exercise requirements into a compressed exercise.md for Claude Code context.
+You convert raw Udacity exercise requirements into a compressed challenge.md for Claude Code context.
 
 OUTPUT FORMAT - use exactly this structure with proper markdown:
 
@@ -367,8 +367,8 @@ def main():
     file_type = args.type
     if not file_type:
         print("\n  What type of file are you generating?")
-        print("  1. lesson.md   - concepts and key decisions")
-        print("  2. exercise.md - exercise requirements")
+        print("  1. concept.md   - concepts and key decisions")
+        print("  2. challenge.md - exercise requirements")
         print("  3. plan.md     - implementation steps")
         choice = input("\n  Enter 1, 2 or 3: ").strip()
         mapping = {"1": "lesson", "2": "exercise", "3": "plan"}

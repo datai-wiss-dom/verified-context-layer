@@ -1,8 +1,19 @@
 # Python
 __pycache__/
+*.pyc
 
-# Environment
+# Virtual environment
+.venv/
+
+# Environment / secrets
 .env
+!.env.example
+# token files
+*token*.txt
+*.token
+
+# Scratch / temp
+/tmp/
 
 # IntelliJ / IDE
 .idea/

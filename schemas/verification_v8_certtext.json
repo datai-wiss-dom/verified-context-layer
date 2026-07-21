@@ -1,0 +1,160 @@
+{
+  "name": "verification",
+  "type": "record",
+  "recordFields": [
+    {
+      "name": "verified_against",
+      "type": "string",
+      "index": 1,
+      "annotations": {
+        "displayName": "Verified Against",
+        "description": "Legacy: single-asset source URI."
+      }
+    },
+    {
+      "name": "verified_at",
+      "type": "datetime",
+      "index": 2,
+      "annotations": {
+        "displayName": "Verified At",
+        "description": "When the steward certified."
+      }
+    },
+    {
+      "name": "source_tier",
+      "type": "enum",
+      "index": 3,
+      "annotations": {
+        "displayName": "Source Tier",
+        "description": "Rolled-up verdict across all anchors."
+      },
+      "enumValues": [
+        {
+          "name": "official_docs",
+          "index": 1
+        },
+        {
+          "name": "verified",
+          "index": 2
+        },
+        {
+          "name": "draft",
+          "index": 3
+        },
+        {
+          "name": "unverified",
+          "index": 4
+        }
+      ]
+    },
+    {
+      "name": "source_etag",
+      "type": "string",
+      "index": 4,
+      "annotations": {
+        "displayName": "Source ETag",
+        "description": "Legacy: single-asset etag."
+      }
+    },
+    {
+      "name": "anchors",
+      "type": "array",
+      "index": 5,
+      "annotations": {
+        "displayName": "Anchors",
+        "description": "One entry per asset+dimension certified."
+      },
+      "arrayItems": {
+        "name": "anchor",
+        "type": "record",
+        "recordFields": [
+          {
+            "name": "asset",
+            "type": "string",
+            "index": 1,
+            "annotations": {
+              "displayName": "Asset",
+              "description": "The Data Product asset this anchor is about (as declared in the DP manifest)."
+            }
+          },
+          {
+            "name": "dimension",
+            "type": "string",
+            "index": 2,
+            "annotations": {
+              "displayName": "Dimension",
+              "description": "technical | quality | semantic."
+            }
+          },
+          {
+            "name": "fingerprint",
+            "type": "string",
+            "index": 3,
+            "annotations": {
+              "displayName": "Fingerprint",
+              "description": "The certified version marker."
+            }
+          },
+          {
+            "name": "freshness_sla_hours",
+            "type": "int",
+            "index": 4,
+            "annotations": {
+              "displayName": "Freshness SLA (hours)",
+              "description": "Optional. Max age of the certified result before stale. Quality only; technical omits it."
+            }
+          },
+          {
+            "name": "measured_against",
+            "type": "string",
+            "index": 5,
+            "annotations": {
+              "displayName": "Measured Against",
+              "description": "The actual resource the fingerprint was read from. May differ from 'asset' (e.g. a quality scan runs on the base table while the asset is the view)."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "drift_summary",
+      "type": "array",
+      "index": 6,
+      "annotations": {
+        "displayName": "Drift Summary",
+        "description": "Which dimensions drifted at last enforce (e.g. [\"semantic\"]). Empty/absent when verified. Read by the wrapper to name what to re-certify."
+      },
+      "arrayItems": {
+        "name": "dimension",
+        "type": "string"
+      }
+    },
+    {
+      "name": "drifted_hash",
+      "type": "string",
+      "index": 7,
+      "annotations": {
+        "displayName": "Drifted Hash",
+        "description": "The composed-context hash captured at the moment enforce detected semantic drift (the version the drift verdict is about). The triage refuses to advise unless the current text still hashes to this value (atomicity pin). Cleared on re-seal."
+      }
+    },
+    {
+      "name": "drift_detected_at",
+      "type": "datetime",
+      "index": 8,
+      "annotations": {
+        "displayName": "Drift Detected At",
+        "description": "When enforce recorded the drifted_hash pin."
+      }
+    },
+    {
+      "name": "certified_text",
+      "type": "string",
+      "index": 9,
+      "annotations": {
+        "displayName": "Certified Text",
+        "description": "The composed-context text (what the semantic anchor hashed) at last seal. The triage uses this as the OLD baseline for the diff, so both sides of the comparison come from VCL state - never hand-supplied. This is the exact last-certified version."
+      }
+    }
+  ]
+}

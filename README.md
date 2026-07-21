@@ -1,441 +1,212 @@
-# Agentic Workflows with Google ADK
+# Verified Context Layer (VCL)
+**Author:** Wissem Khlifi ·
 
 
-**Udacity — Google Agentic AI Engineer Nanodegree · Course 2**
-
-**Author:** Wissem Khlifi · 
-
-**GitHub:** [@datai-wiss-dom](https://github.com/datai-wiss-dom) · 
-
-**April 2026**
 
 
------
+**July 2026**
 
 
-## What this project is
+**A structural verification layer that decides whether an AI agent may ground on a data
+product's context — and withholds it when the context is no longer trustworthy.**
 
 
-Coursework for building agentic workflows with [Google ADK](https://google.github.io/adk-docs/) and Vertex AI Gemini.
-Beyond the lessons themselves, this repo contains a **context engineering system** — a set of structured files and scripts that keep multiple AI coding tools (Claude Code, Gemini CLI, Antigravity) synchronized and oriented across 56 lessons without re-explaining context every session.
+VCL sits between an agent and a data catalog. Before an agent grounds on a data
+product's context (schema, business rules, lineage), VCL checks whether that context is
+still certified. If a source has drifted since a human last signed off, VCL withholds
+the context — structurally, not by asking the agent to behave.
 
 
-> **Note:** Each Udacity lesson provides its own starter code with a different project structure. Every lesson is a separate IntelliJ project and GitHub repository. The `manageskills/` scripts are copied into each new lesson project.
+VCL is implemented against **Google Cloud's Knowledge Catalog** (renamed from Dataplex
+Universal Catalog in April 2026; the APIs and IAM names remain under the `dataplex`
+namespace, e.g. `dataplex.googleapis.com`, so the code calls `gcloud dataplex`). The
+*pattern* — verification currency as a structural gate — generalizes to any catalog with
+a metadata API; the *implementation* here is Knowledge-Catalog-specific.
 
 
------
+---
 
 
-## The problem it solves
+## The problem
 
 
-Raw Udacity lesson notes were accumulating as loose `.md` files in the project root. Every AI tool session loaded all of them — wasting tokens, losing focus, and requiring manual re-explanation of project context each time.
+Everyone in a data catalog generates meaning — schemas, business glossaries, rules like
+"email is PII, never expose." Nobody continuously verifies that meaning. And even when a
+steward certifies a data product once, nothing detects when the underlying source drifts
+*afterward*. The certification silently goes stale.
 
 
-|Before                                 |After                                 |
-|---------------------------------------|--------------------------------------|
-|~50–100k tokens auto-loaded per session|~500 tokens hot + ~2–3k warm on demand|
-|Context reset on every new session     |Tools arrive already oriented         |
-|Work lost when Antigravity hit quota   |Seamless handoff via `HANDOFF.md`     |
+An agent grounding on stale-but-still-"approved" context is dangerous: a confidently
+ungoverned agent (schema without its current PII rule) is worse than a blind one — it
+believes it is informed and acts on rules that no longer hold.
 
 
------
+VCL closes that gap. It distinguishes three axes:
 
 
-## Architecture — 6 layers
+| Axis | Question | Where it stands |
+|---|---|---|
+| **Freshness** | When was the source last updated? | Knowledge Catalog tracks this (`entrySource.updateTime`) |
+| **Approval** | Did a human sign off once? | On the Knowledge Catalog roadmap |
+| **Verification currency** | *Is that sign-off still valid given source drift?* | **VCL's contribution** |
 
 
-### Layer 1 — Tiered context system
+---
 
 
-Three tiers control what gets loaded and when:
+## How it works
 
 
-```
-HOT   (~500 tokens) — auto-read every session
-     CLAUDE.md       Claude Code CLI
-     GEMINI.md       Gemini CLI
-     AGENTS.md       Antigravity, Cursor, any tool
+VCL verifies three independent dimensions of a data product and pins each to a
+fingerprint at certification ("seal"):
 
 
-WARM  (~2–3k tokens) — current lesson only, slides forward
-     .claude/current/lesson.md      <- before coding
-     .claude/current/exercise.md    <- before coding
-     .claude/current/plan.md        <- before coding
-     .claude/current/eval_results.md <- after /eval
-     .claude/current/report.md      <- after /report
+- **Technical** — the schema/view fingerprint (drift = structure changed).
+- **Quality** — the data-quality scan result + freshness SLA (drift = failing or stale).
+- **Semantic** — a hash of the composed grounding context, i.e. the business rules an
+  agent actually grounds on (drift = the rules text changed).
 
 
-COLD  (never auto-loaded)
-     docs/archive/     previous lessons
-     docs/reference/   stable reference, loaded on demand
-```
+These drift independently. When any dimension drifts, the data product is marked
+`unverified` and the drifted dimension is recorded.
 
 
-### Layer 2 — Per-tool context files
-
-
-Each AI tool gets its own instruction file at the project root.
-No manual re-explanation — the tool reads its file and knows the stack, rules, and current position.
-
-
-|File       |Tool                                  |
-|-----------|--------------------------------------|
-|`CLAUDE.md`|Claude Code CLI                       |
-|`GEMINI.md`|Gemini CLI                            |
-|`AGENTS.md`|Antigravity · Claude Code · Gemini CLI|
-
-
-### Layer 3 — Skills system
-
-
-Stable command patterns, encoded once, invoked on demand. Zero token cost when not in use.
+### Three components
 
 
 ```
-.claude/commands/deploy.md    →  /deploy
-.claude/commands/eval.md      →  /eval (local + BQ judge)
-.claude/commands/scaffold.md  →  /scaffold
-.claude/commands/review.md    →  /review
-.claude/commands/observe.md   →  /observe
-.claude/commands/report.md    →  /report
-.claude/commands/security.md  →  /security
+                          ┌─────────────────────────────┐
+   agent ──lookup_context─▶│  vcl_wrapper.py (the gate)  │──▶ Knowledge Catalog MCP
+                          │  verified   → deliver context │
+                          │  unverified → WITHHOLD + note │
+                          └──────────────┬──────────────┘
+                                         │ reads stored verdict
+                          ┌──────────────▼──────────────┐
+                          │  verification aspect (KC)   │  ← durable, cross-process state
+                          └──────────────▲──────────────┘
+             writes verdict │                     │ reads baseline
+        ┌────────────────────┴───────┐   ┌─────────┴────────────────────┐
+        │  vcl.py (deterministic)    │   │  vcl_triage.py (advisory)    │
+        │  seal / check / enforce    │   │  LLM: cosmetic vs substantive │
+        │  AI-FREE trust boundary    │   │  human-in-the-loop re-cert     │
+        └────────────────────────────┘   └───────────────────────────────┘
 ```
 
 
-### Layer 4 — Antigravity handoff protocol
+- **`vcl.py`** — the deterministic core. `seal` certifies a data product (captures
+  fingerprints + the certified context baseline). `check` re-reads and reports drift
+  (read-only). `enforce` persists the verdict and, on semantic drift, records an
+  atomicity pin. Verdicts are stored in a custom **aspect** on the data product's
+  Knowledge Catalog entry (durable, cross-process state). Contains **no AI** — it is a
+  provable verifier.
 
 
-Solves the quota interruption problem. When Antigravity runs out of quota mid-task:
+- **`vcl_wrapper.py`** — an MCP server between the agent and Knowledge Catalog. It
+  proxies everything to the Knowledge Catalog MCP server unchanged **except** context
+  lookups (`lookup_context`), which it gates: verified → deliver the full context;
+  unverified → withhold it **whole** with an honest note naming which dimension drifted.
+  Reads the stored verdict only — it never re-verifies in the request path.
 
 
-```
-.agent/rules/handoff-rule.md   always-on rule — forces HANDOFF.md write on every stop
-.agent/workflows/handoff.md    /handoff slash command — trigger manually anytime
-AGENTS.md                      cross-tool rule — tells all tools to read HANDOFF.md at start
-```
+- **`vcl_triage.py`** — an **advisory** LLM tool for the steward. When the semantic
+  dimension drifts, it compares the old vs new rules and classifies the change as
+  *cosmetic* (one-click re-approve) or *substantive* (review carefully). It never writes
+  a verdict, never re-seals, never gates — the human decides. An atomicity gate ensures
+  it only advises on the exact version the verdict pinned.
 
 
-**The flow:**
+---
 
 
-```
-Antigravity hits quota
- → writes HANDOFF.md automatically (forced by rule)
- → Claude Code or Gemini CLI starts
- → reads AGENTS.md → checks HANDOFF.md first
- → continues exactly where Antigravity stopped
-```
+## Design principles
 
 
-### Layer 5 — Automation scripts
+1. **Structural over instructional.** Enforcement lives in the tools, never in a prompt.
+   The wrapper withholds context; the agent physically cannot ground on what it never
+   receives. We do not ask the agent to be careful.
 
 
-**`manageskills/setup_context_structure.py`** — run once per new project:
+2. **Whole-or-nothing per data product.** The wrapper never delivers *partial* context
+   for one data product — schema without its governance rules would be a misleading
+   context the wrapper itself manufactured. Deliver the whole certified context, or
+   withhold it whole. Across multiple products, each is independently gated.
 
 
-- Creates the full folder structure
-- Writes all context files with correct encoding
-- Archives existing lesson notes
-- Updates `.gitignore`
+3. **Deterministic trust boundary.** The verifier (`vcl.py`) contains no AI. The LLM
+   lives only in the advisory triage, in a separate file with a separate identity. The
+   file boundary is the trust boundary.
 
 
-**`manageskills/ai_md_converter.py`** — run 3× per lesson (lesson, exercise, plan):
+4. **Verify, don't assume.** Every claim is confirmed by a round-trip read of the live
+   resource — never a tool's success message, documentation, or prediction.
 
 
-- Accepts raw text pasted from Udacity
-- Calls Vertex AI Gemini via ADC (no API key needed)
-- Outputs compressed markdown in the correct format
-- Saves directly to `.claude/current/`
-- Auto-archives previous lesson files to `docs/archive/`
-- Auto-updates lesson number in `CLAUDE.md`, `GEMINI.md`, and `course-map.md`
-- Auto-deletes stale `HANDOFF.md`
+5. **Candor.** Every capability is labelled GA / Preview / Gap. Weaknesses are stated,
+   not hidden.
 
 
-### Layer 7 — Observability and Evaluation Stack
+---
 
-Every agent runs with BigQuery Agent Analytics plugin
-enabled. Each lesson writes to its own table in the
-shared dataset, powering three capabilities:
 
-```
-TRACE DATABASE (BigQuery: agent_analytics.{lesson}_agent_events)
-    One table per lesson, auto-created on first agent run
-    e.g. c2_l9_agent_events, c2_l10_agent_events, c3_l1_agent_events
-          |
-          ├── Trace Visualization (/observe Layer 2)
-          |   Visual DAG of exactly what agent did
-          |   Use when debugging unexpected behavior
-          |
-          ├── LLM-as-Judge (/observe Layer 3 + /eval)
-          |   Quality evaluation on real production data
-          |   Criteria: task_completion, hallucination,
-          |   tool_correctness, step_efficiency
-          |
-          └── Regression Detection (/observe Step 7 SQL)
-              Catches if agent gets worse between lessons
-              Blocks submission if regressions detected
-```
+## Status
 
-Invoke with these slash commands in Claude Code:
-- `/observe`  → add BigQuery plugin + LLM-as-Judge
-- `/eval`     → local eval + BQ judge + regression check
-- `/report`   → generate learning report from code
-- `/security` → pre-commit security audit
 
-### Layer 6 — Git strategy
+| Component | Status |
+|---|---|
+| Deterministic validator (3 dimensions, drift + staleness) | Working, proven live |
+| Wrapper (whole-or-nothing gate, honest note) | Working, agent-connectable |
+| Triage (LLM advisory, cosmetic vs substantive) | Working |
+| Atomicity (version-pinning across separate processes) | Working |
+| Demo agent (structural, two-run) | Spec complete (see `spec/`) |
+| Deploy (Cloud Run + scoped identities) | Designed, not deployed |
+| Discovery / control plane (catalog-scale) | Deferred by design |
+
+
+VCL is a **reference architecture** built on generally-available primitives — a
+demonstration of verification currency as a platform property, not a shipped product.
+
+
+---
+
+
+## Repository layout
 
 
 ```
-Committed to GitHub                   Purpose
-─────────────────────────────────────────────────────
-CLAUDE.md, GEMINI.md, AGENTS.md       team / tool context
-.claude/commands/                      skills
-.agent/rules/, .agent/workflows/       Antigravity config
-docs/reference/                        stable reference
-docs/archive/                          lesson history
-manageskills/                          scripts
-
-
-Excluded via .gitignore               Reason
-─────────────────────────────────────────────────────
-.claude/current/                       ephemeral, personal
-.env                                   secrets
-HANDOFF.md                             ephemeral, session only
+src/            vcl.py, vcl_wrapper.py, vcl_triage.py
+schemas/        current verification aspect schema (+ archive/ of the version history)
+docs/           operations reference, architecture notes
+spec/           agent build spec (requirements, lesson, exercise, plan)
+agents/         generated demo agent (built from spec/)
 ```
 
 
------
+## Requirements
 
 
-## Per-lesson workflow
+- Python 3.11+
+- Google Cloud SDK (`gcloud`, `bq`) authenticated with application-default credentials
+- A Google Cloud project with Dataplex / Knowledge Catalog, BigQuery, and (for the
+  triage) Vertex AI enabled
+- `google-genai` (triage), ADK (`google-adk`, for the demo agent)
 
 
-Each Udacity lesson has its own starter code, its own file structure, and its own GitHub repo.
-The `manageskills/` folder is copied into each new lesson project.
+## Getting started
 
 
-### Starting a new lesson project
-
-
-```bash
-# 1. Download Udacity starter code for the lesson
-# 2. Open in IntelliJ as new project
-# 3. Copy only 2 scripts (everything else auto-generated)
-mkdir manageskills
-cp /path/to/previous/manageskills/setup_context_structure.py manageskills/
-cp /path/to/previous/manageskills/ai_md_converter.py manageskills/
-cp /path/to/previous/README.md .
-# OPS.md and SKILL_README.md are auto-generated by
-# setup_context_structure.py -- no need to copy them
-
-# 4. Setup environment
-gcloud config set project agentic-2026-493108
-gcloud auth application-default login
-
-uv init
-uv add google-genai google-adk google-cloud-aiplatform
-
-# 5. Run setup once — replace 2 and 9 with your course and lesson
-python3 manageskills/setup_context_structure.py --course 2 --lesson 9
-
-
-# 6. Generate lesson context (3 runs)
-python3 manageskills/ai_md_converter.py --type lesson   --lesson L2
-python3 manageskills/ai_md_converter.py --type exercise --lesson L2
-python3 manageskills/ai_md_converter.py --type plan     --lesson L2
-
-
-# 7. Initialize GitHub
-git init
-git remote add origin git@github.com:datai-wiss-dom/<lesson_repo>.git
-git add .
-git commit -m "L2 initial setup from Udacity starter code"
-git push -u origin main
-```
-
-# 8. Start coding
-
-```
-claude
-```
-
-### Starting each exercise
-
-Use this prompt every time — no need to re-explain context to the AI:
-
-**Claude Code / Gemini CLI:**
+See `docs/VCL_operations_reference.md` for the full command reference (who calls what,
+when, and why). The lifecycle in one line:
 
 
 ```
-Implement the exercise following .claude/current/lesson.md,
-.claude/current/exercise.md and .claude/current/plan.md.
-Read the existing starter code first before writing anything.
+seal (certify) → check / enforce (detect drift) → triage (review) → seal (re-certify)
+                        wrapper gates every agent request on the stored verdict
 ```
 
 
-**Antigravity:**
+---
 
 
-```
-Implement the exercise
-```
+*This project is a reference architecture. It is not an official Google product.*
 
-
-> The context engineering system means CLAUDE.md, GEMINI.md and
-> AGENTS.md already carry all project context. The AI arrives
-> oriented — stack, rules, lesson position, exercise requirements.
-> Never re-explain these manually.
-
-### After implementing each exercise
-
-Run these three commands in order in Claude Code:
-
-**Step 1: Add observability**
-
-```
-/observe
-```
-
-Adds BigQueryAgentAnalyticsPlugin to your agent.
-Verifies events stream to BigQuery.
-Saves LLMAsJudge scores to .claude/current/eval_results.md
-
-**Step 2: Run full evaluation**
-
-```
-/eval
-```
-
-Stage 1: agents-cli eval run (local tests)
-Stage 2: BigQuery LLM-as-Judge quality gates
-Stage 3: Regression detection SQL
-Saves results to .claude/current/eval_results.md
-All three stages must pass before proceeding.
-
-**Step 3: Generate learning report**
-
-```
-/report
-```
-
-Reads your code + exercise.md + plan.md + eval_results.md
-Generates comprehensive report with WHY not just WHAT
-Saves to .claude/current/report.md
-Review in IntelliJ before committing.
-
-Step 4: Run security audit
-
-```
-/security
-```
-
-Scans credentials, packages, file access, MCP servers.
-Fix any FAIL findings before committing.
-WARN findings are non-critical but should be reviewed.
-
-After all four commands pass:
-
-### Completing a lesson and tagging
-
-
-```bash
-git add .
-git commit -m "L2 complete - report + eval results"
-git tag L2-complete
-git push origin main
-git push origin L2-complete
-```
-
-
-To return to any lesson exact state:
-
-
-```bash
-git checkout L2-complete
-```
-
-
------
-
-
-## Antigravity quota interruption
-
-
-```
-/handoff    ← type in Antigravity chat
-claude      ← reads HANDOFF.md, continues seamlessly
-```
-
-
-`HANDOFF.md` is automatically deleted on the next lesson run of `ai_md_converter.py`.
-
-
------
-
-
-## Stack
-
-
-|Layer          |Tool                                                   |
-|---------------|-------------------------------------------------------|
-|Language       |Python 3.13                                            |
-|Package manager|uv                                                     |
-|Agent framework|Google ADK                                             |
-|LLM            |Vertex AI Gemini (gemini-2.5-flash)                    |
-|Deployment     |Cloud Run / Vertex AI Agent Engine                     |
-|IDE            |IntelliJ IDEA 2025.3                                   |
-|AI tools       |Claude Code CLI · Gemini CLI · Antigravity · agents-cli|
-|Extensions     |data-agent-kit-starter-pack (optional) · Claude Code: /plugin install (Method A) · Gemini CLI: gemini extensions install (Method B) · Full setup: OPS.md Section 1.11|
-
-
------
-
-
-## Key insight
-
-
-This project applies **context engineering** — encoding project knowledge into structured files so AI tools arrive already oriented.
-
-
-The system scales across:
-
-
-- 56 lessons across 4 courses
-- 4 different AI coding tools
-- Quota interruptions with zero work loss
-- ~500 tokens per session instead of 100k
-
-
------
-
-
-## Operations & Maintenance
-
-
-See [`manageskills/OPS.md`](manageskills/OPS.md) for:
-
-
-- Reset procedure (clean slate)
-- Troubleshooting steps
-- Setup verification checklist
-
-
------
-
-
-## Optional Extensions
-
-### data-agent-kit-starter-pack
-
-Works across Gemini CLI, Claude Code, and Antigravity.
-Adds GCP data engineering expertise automatically.
-
-Install once on your machine — see
-[manageskills/OPS.md](manageskills/OPS.md) for
-installation guide.
-
-This is optional. All tools work without it.
-
-Most relevant from Course 3 onwards.
 

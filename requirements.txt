@@ -1,0 +1,6 @@
+# Packages imported by src/*.py and vcl_audience_demo/*.py, pinned to installed versions.
+google-adk==2.5.0
+google-genai==2.12.1
+google-cloud-bigquery==3.42.2
+mcp==1.28.1
+python-dotenv==1.2.2
