@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+
+# Environment
+.env
+
+# IntelliJ / IDE
+.idea/
+*.iml
+
+# Lock files
+*.lock
+uv.lock

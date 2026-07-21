@@ -1,0 +1,10 @@
+[project]
+name = "verified-context-layer"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "google-adk>=2.5.0",
+    "google-cloud-aiplatform>=1.161.0",
+    "google-genai>=2.12.1",
+]
