@@ -16,7 +16,7 @@ against the installed version before use; do not guess.
   httpx_client_factory
 - Wrapper is a remote HTTP MCP server at http://127.0.0.1:8080/mcp; bearer auth header
   Authorization: Bearer <VCL_TOKEN>. Use StreamableHTTP (NOT Stdio/Sse).
-- Model gemini-2.5-flash, Vertex (agentic-2026-493108, us-central1).
+- Model gemini-2.5-flash, Vertex (your-project-id, us-central1).
 
 
 ## [VERIFY] before building (read the installed API, don't guess)
@@ -67,9 +67,9 @@ vcl_context = McpToolset(
 # 'verified' -> return a refusal (no execution); (3) if verified -> execute the SQL,
 # but only against the safe view (target must be the handed customers_safe).
 # Real objects (verified live 2026-07-20):
-#   safe view : agentic-2026-493108.ecommerce_views.customers_safe
+#   safe view : your-project-id.ecommerce_views.customers_safe
 #               [customer_id, country, city, signup_date, customer_segment, lifetime_value]
-#   join      : agentic-2026-493108.ecommerce_views.orders
+#   join      : your-project-id.ecommerce_views.orders
 #   LOCKED OUT: ecommerce_views.customers (has email), base Iceberg tables
 # Two structural layers: (a) customers_safe has no email by construction;
 #   (b) the tool refuses entirely when the DP is unverified.

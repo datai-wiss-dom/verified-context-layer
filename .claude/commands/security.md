@@ -63,7 +63,7 @@ Any other: ask developer to verify first.
 ## Audit 6: Env var usage
 ```bash
 grep -rn --include='*.py' \
-  'agentic-2026-493108' \
+  'your-project-id' \
   . --exclude-dir='.venv' --exclude-dir='.git'
 ```
 Project ID in .py files should use os.environ.

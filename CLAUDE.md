@@ -1,15 +1,11 @@
 # Agentic Workflows ADK — Project Context
 
 ## Identity
-- Student: Udacity Google Agentic AI Engineer Nanodegree
+- Profile :Agentic AI Engineer
 - GitHub: datai-wiss-dom
-- GCP Project: agentic-2026-493108
-- GCP Account: admin@wissemk.altostrat.com
+- GCP Project: your-project-id (real value in .env, key VCL_PROJECT)
+- GCP Account: your-account@example.com
 
-## Current Position
-- Course: Course 2
-- Lesson: L210
-- Status: In progress
 
 ## Active Context (read these for current work)
 @.claude/current/lesson.md

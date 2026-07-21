@@ -53,7 +53,7 @@ state.
 
 
 **TR-1 — Agent framework.** ADK `LlmAgent`, model gemini-2.5-flash, Vertex backend
-(project agentic-2026-493108, us-central1).
+(project your-project-id, us-central1).
 
 
 **TR-2 — Two tool sources (the key architecture):**
@@ -93,7 +93,7 @@ but the surface it can reach contains no PII and is gated by verification.
 
 
 **TR-3a — Real objects (verified live 2026-07-20):**
-- Safe view: `agentic-2026-493108.ecommerce_views.customers_safe` — columns
+- Safe view: `your-project-id.ecommerce_views.customers_safe` — columns
   [customer_id, country, city, signup_date, customer_segment, lifetime_value]; NO email/
   first_name/last_name (confirmed by schema read).
 - Unsafe (locked out): `ecommerce_views.customers` (HAS email) + base Iceberg tables.

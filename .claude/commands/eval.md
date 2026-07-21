@@ -24,7 +24,7 @@ LESSON_LABEL = 'c2_l210'
 TABLE_ID = 'c2_l210_agent_events'
 
 client = Client(
-    project_id='agentic-2026-493108',
+    project_id='your-project-id',
     dataset_id='agent_analytics',
     table_id=TABLE_ID,
 )

@@ -27,7 +27,7 @@ The single exact next step with command or code to run.
 - ADK agents via agents-cli only
 - Never hardcode credentials or API keys
 - Never commit .env files
-- GCP Project: agentic-2026-493108
+- GCP Project: your-project-id
 - Default model: gemini-2.5-flash
 - Default region: us-central1
 
@@ -65,7 +65,7 @@ gemini extensions install https://github.com/gemini-cli-extensions/data-agent-ki
 Every ADK agent MUST include BigQueryAgentAnalyticsPlugin in App().
 Invoke /observe after implementing each exercise.
 Invoke /eval before every submission.
-Dataset: agentic-2026-493108:agent_analytics
+Dataset: your-project-id:agent_analytics
 Table: c2_l210_agent_events (auto-created per lesson)
 If plugin fails, warn and continue normally.
 

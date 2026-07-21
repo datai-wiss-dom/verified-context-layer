@@ -42,10 +42,11 @@ declines.
 ## Prerequisites
 
 ```bash
-# From the repo root. Vertex ADC + the objects/aspects from TR-3a already exist.
-gcloud config set project agentic-2026-493108
-gcloud auth application-default login          # ADC for BigQuery + Vertex
-export VCL_TOKEN=$(gcloud auth print-access-token)   # bearer for the wrapper
+# From the repo root. First copy .env.example -> .env and fill in your real values.
+set -a; source .env; set +a                          # load VCL_PROJECT, VCL_PROJECT_NUMBER, ...
+gcloud config set project "$VCL_PROJECT"
+gcloud auth application-default login                 # ADC for BigQuery + Vertex
+export VCL_TOKEN=$(gcloud auth print-access-token)    # bearer for the wrapper
 ```
 
 The demo reads the DP verdict + safe views live; it needs the `customers_safe` and
@@ -57,12 +58,14 @@ The demo reads the DP verdict + safe views live; it needs the `customers_safe` a
 Common args (used by every `vcl.py` call):
 
 ```bash
-DP_ENTRY="projects/129682754245/locations/us-central1/dataProducts/ecommerce-customer-intelligence"
-DP_RES="projects/129682754245/locations/us-central1/entryGroups/@dataplex/entries/${DP_ENTRY}"
-ASPECT="projects/129682754245/locations/us-central1/aspectTypes/verification"
-COMMON="--project agentic-2026-493108 --project-number 129682754245 --location us-central1 \
-  --entry-group @dataplex --dp-entry ${DP_ENTRY} --dp-resource ${DP_RES} \
-  --aspect-type ${ASPECT} --quality-scan customers=customers--quality:24"
+# All values come from .env (see .env.example for the keys). Load them first:
+set -a; source .env; set +a
+# --dp-entry is the DP resource without the entryGroups/.../entries/ prefix:
+COMMON="--project $VCL_PROJECT --project-number $VCL_PROJECT_NUMBER --location $VCL_LOCATION \
+  --entry-group @dataplex \
+  --dp-entry ${VCL_DP_RESOURCE#*/entries/} \
+  --dp-resource $VCL_DP_RESOURCE \
+  --aspect-type $VCL_ASPECT_TYPE --quality-scan customers=customers--quality:24"
 ```
 
 **1. Seal (certify current state → verified):**

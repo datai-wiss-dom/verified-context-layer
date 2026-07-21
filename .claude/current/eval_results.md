@@ -1,6 +1,6 @@
 # L210 Eval Results — audience_builder_agent
 
-_Generated 2026-07-21 · model gemini-2.5-flash · Vertex (agentic-2026-493108, us-central1)_
+_Generated 2026-07-21 · model gemini-2.5-flash · Vertex (your-project-id, us-central1)_
 _Observability table: `agent_analytics.c2_l210_agent_events` (auto-created by plugin)_
 
 ## Stage 1 — Observability wiring

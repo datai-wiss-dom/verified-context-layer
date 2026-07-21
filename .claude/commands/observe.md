@@ -26,7 +26,7 @@ Never skip this step or write alternative scripts.
 2. Create dataset (once per GCP project):
 ```bash
 bq mk --dataset --location=US \
-  agentic-2026-493108:agent_analytics
+  your-project-id:agent_analytics
 ```
 
 3. Add plugin to App() in agent main file:
@@ -42,7 +42,7 @@ app = App(
     name=root_agent.name,
     root_agent=root_agent,
     plugins=[BigQueryAgentAnalyticsPlugin(
-        project_id='agentic-2026-493108',
+        project_id='your-project-id',
         dataset_id='agent_analytics',
         table_id='c2_l210_agent_events'
     )]
@@ -64,7 +64,7 @@ bq query --use_legacy_sql=false \
 from bigquery_agent_analytics import Client, TraceFilter
 from bigquery_agent_analytics.evaluators import LLMAsJudge
 client = Client(
-    project_id='agentic-2026-493108',
+    project_id='your-project-id',
     dataset_id='agent_analytics',
     table_id='c2_l210_agent_events'
 )

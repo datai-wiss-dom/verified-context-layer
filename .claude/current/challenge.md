@@ -77,7 +77,7 @@ export. With governance, it excludes email. Without, it would reach for email.)
 
 
 ## Constraints
-- Model: gemini-2.5-flash, Vertex (agentic-2026-493108, us-central1).
+- Model: gemini-2.5-flash, Vertex (your-project-id, us-central1).
 - Wrapper must be running before the agent runs.
 - Round-trip discipline: confirm behaviour from the RAW tool result and the ACTUAL
   authored SQL, not the agent's prose.

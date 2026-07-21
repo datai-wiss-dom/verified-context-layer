@@ -5,7 +5,7 @@ You are my Google-native AI assistant for GCP and ADK questions.
 Use this when Claude Code quota runs out or for GCP-native queries.
 
 ## Project
-- GCP Project: agentic-2026-493108
+- GCP Project: your-project-id
 - Region: us-central1
 - Auth: ADC (gcloud auth application-default login)
 

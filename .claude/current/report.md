@@ -1,7 +1,7 @@
 # L210 Learning Report — Governance at the export boundary (VCL audience-builder)
 
 **Author:** Wissem Khlifi · July 2026
-**Course 2 · L210 · model gemini-2.5-flash (Vertex, agentic-2026-493108/us-central1)**
+**Course 2 · L210 · model gemini-2.5-flash (Vertex, your-project-id/us-central1)**
 
 ---
 

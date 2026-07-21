@@ -15,6 +15,12 @@ __pycache__/
 # Scratch / temp
 /tmp/
 
+# Local-only working log (session/evidence notes with real identifiers — not for the repo)
+docs/reference/vcl_architecture_and_evidence.md
+
+# Separate context-engineering tooling project — copied per-lesson, not part of this repo
+manageskills/
+
 # IntelliJ / IDE
 .idea/
 *.iml
