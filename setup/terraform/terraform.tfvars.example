@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values. Placeholders only here.
+project_id     = "your-project-id"
+project_number = "your-project-number"
+location       = "us-central1"
+
+# Datasets. views_dataset must stay "ecommerce_views" (the demo agent references it).
+base_dataset  = "ecommerce"
+views_dataset = "ecommerce_views"
+
+# Data Product owner (used by the DP creation script).
+owner_email = "your-account@example.com"
+
+# Defaults are usually fine:
+# dp_id           = "ecommerce-customer-intelligence"
+# quality_scan_id = "customers-quality"
