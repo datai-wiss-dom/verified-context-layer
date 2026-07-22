@@ -55,6 +55,11 @@ ASPECT_TYPE = os.environ.get(
     "VCL_ASPECT_TYPE",
     "projects/your-project-number/locations/us-central1/aspectTypes/verification",
 )
+# Audit store (SEPARATE from the verification aspect — ARCHITECTURE INV-3). A dedicated
+# Firestore database + collection; the triage only CREATEs here, never reads it back into
+# any verdict path.
+AUDIT_DATABASE = os.environ.get("VCL_AUDIT_DATABASE", "vcl-audit")
+AUDIT_COLLECTION = os.environ.get("VCL_AUDIT_COLLECTION", "vcl_triage_audit")
 
 
 
@@ -164,6 +169,42 @@ def triage(old_text, new_text):
 
 
 
+def _write_audit_record(dp_resource, pin, old_text, new_text, advice):
+    """BEST-EFFORT: append the triage's advisory record to Firestore (the vcl-audit
+    database). This is ADVISORY PROVENANCE, never a verdict (ARCHITECTURE INV-3): it goes
+    to a SEPARATE store, is never read by the wrapper's gate or by vcl.py, and must NEVER
+    block or alter the advice already produced above. On ANY failure it prints a note and
+    returns — the steward still gets the advice.
+    """
+    try:
+        from google.cloud import firestore
+
+        def _h(t):
+            return "sha256:" + hashlib.sha256(t.encode()).hexdigest() if t else None
+
+        record = {
+            "dp_resource": dp_resource,                       # None in manual (non-gate) mode
+            "recorded_at": firestore.SERVER_TIMESTAMP,
+            "drifted_hash": (pin or {}).get("drifted_hash") or None,  # version pin, or None
+            "pin_available": bool(pin and pin.get("drifted_hash")),   # note when no pin
+            "drift_summary": (pin or {}).get("drift_summary"),
+            "classification": advice.get("classification"),  # cosmetic | substantive
+            "changed_rules": advice.get("changed_rules"),     # LLM advice, verbatim
+            "reasoning": advice.get("reasoning"),
+            "recommendation": advice.get("recommendation"),
+            "model": MODEL,
+            "advisory": True,                                 # never mistake this for a verdict
+            "certified_text_hash": _h(old_text),              # OLD fingerprint compared
+            "current_text_hash": _h(new_text),                # NEW fingerprint compared
+        }
+        client = firestore.Client(project=PROJECT, database=AUDIT_DATABASE)
+        _, ref = client.collection(AUDIT_COLLECTION).add(record)
+        print(f"[audit] advisory triage recorded to Firestore "
+              f"{AUDIT_DATABASE}/{AUDIT_COLLECTION} (doc {ref.id})")
+    except Exception as e:  # noqa: BLE001 - audit is best-effort; the advice must never block
+        print(f"[audit write failed: {e}] (the advice above is unaffected)")
+
+
 def main():
     ap = argparse.ArgumentParser(description="VCL semantic triage (advisory)")
     ap.add_argument("--old")
@@ -182,6 +223,7 @@ def main():
     # again) - so the triage never advises on a different version than was flagged.
     new_from_gate = None
     old_from_gate = None
+    pin = None  # kept in scope for the audit record (set below in gate mode)
     if a.dp_entry and a.dp_resource:
         pin = read_pin(a.dp_entry)
         if pin is None:
@@ -245,6 +287,9 @@ def main():
     print(json.dumps(parsed, indent=2))
     print("\n(ADVISORY ONLY - the steward decides whether to re-seal. "
           "This does not change any verification verdict.)")
+    # ADDITIVE (INV-3): record the advice to the separate audit store, best-effort.
+    # Runs AFTER the advice is printed and never affects it.
+    _write_audit_record(a.dp_resource, pin, old, new, parsed)
     return 0
 
 
