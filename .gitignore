@@ -15,6 +15,13 @@ __pycache__/
 # Scratch / temp
 /tmp/
 
+# Terraform (state + real tfvars are local; .example is committed)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/terraform.tfvars
+crash.log
+
 # Local-only working log (session/evidence notes with real identifiers — not for the repo)
 docs/reference/vcl_architecture_and_evidence.md
 

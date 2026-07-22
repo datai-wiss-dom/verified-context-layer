@@ -1,0 +1,16 @@
+# Keep the Cloud Build upload tiny — only src/ + deploy/ are needed to build the image.
+.git/
+.venv/
+.idea/
+__pycache__/
+*.pyc
+docs/
+manageskills/
+setup/
+vcl_audience_demo/
+schemas/
+.claude/
+*.tfstate
+*.tfstate.*
+**/.terraform/
+.env
