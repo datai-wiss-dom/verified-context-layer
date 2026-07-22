@@ -1,0 +1,69 @@
+{
+  "name": "governance_drift",
+  "type": "record",
+  "recordFields": [
+    {
+      "name": "status",
+      "type": "enum",
+      "index": 1,
+      "annotations": {
+        "displayName": "Status",
+        "description": "DISPLAY ONLY. Review state shown to the steward on the entry. The wrapper's gate NEVER reads this aspect — the only gate is the `verification` aspect's source_tier."
+      },
+      "enumValues": [
+        { "name": "PENDING_REVIEW", "index": 1 },
+        { "name": "RESOLVED", "index": 2 }
+      ]
+    },
+    {
+      "name": "drifted_dimensions",
+      "type": "array",
+      "index": 2,
+      "annotations": {
+        "displayName": "Drifted Dimensions",
+        "description": "Which dimension(s) drifted (e.g. [\"semantic\"]). Mirrors the verification aspect's drift_summary, for display."
+      },
+      "arrayItems": { "name": "dimension", "type": "string" }
+    },
+    {
+      "name": "ai_classification",
+      "type": "enum",
+      "index": 3,
+      "annotations": {
+        "displayName": "AI Classification",
+        "description": "Advisory triage output (cosmetic | substantive). ADVISORY ONLY — never a verdict; it does not affect what the wrapper delivers."
+      },
+      "enumValues": [
+        { "name": "cosmetic", "index": 1 },
+        { "name": "substantive", "index": 2 }
+      ]
+    },
+    {
+      "name": "ai_reasoning",
+      "type": "string",
+      "index": 4,
+      "annotations": {
+        "displayName": "AI Reasoning",
+        "description": "One-sentence advisory reasoning from the triage."
+      }
+    },
+    {
+      "name": "ai_recommendation",
+      "type": "string",
+      "index": 5,
+      "annotations": {
+        "displayName": "AI Recommendation",
+        "description": "Advisory next-step from the triage (e.g. one-click re-approve | review carefully)."
+      }
+    },
+    {
+      "name": "drifted_at",
+      "type": "datetime",
+      "index": 6,
+      "annotations": {
+        "displayName": "Drifted At",
+        "description": "When drift was detected (mirrors the verification aspect's drift_detected_at)."
+      }
+    }
+  ]
+}
