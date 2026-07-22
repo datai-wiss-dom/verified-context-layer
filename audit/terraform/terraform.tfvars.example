@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored). Placeholders only.
+project_id = "your-project-id"
+location   = "us-central1"
+
+# Defaults are usually fine:
+# audit_database    = "vcl-audit"
+# triage_account_id = "vcl-triage"
