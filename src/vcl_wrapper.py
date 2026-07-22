@@ -30,10 +30,13 @@ The wrapper reads the bearer token from VCL_TOKEN (so we never hardcode creds).
 
 import json
 import os
-import subprocess
+import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import google.auth
+from google.auth.transport.requests import Request as _GoogleAuthRequest
 from dotenv import load_dotenv
 
 # Load repo-root .env so config comes from the environment, not hardcoded literals.
@@ -41,6 +44,27 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 
 GOOGLE_MCP = "https://dataplex.googleapis.com/mcp"
+DATAPLEX_API = "https://dataplex.googleapis.com/v1"
+
+
+# --- auth: token for Dataplex ------------------------------------------------
+# Prefer VCL_TOKEN when set (local dev / explicit override); otherwise use the runtime
+# service account's Application Default Credentials (Cloud Run). This is auth ACQUISITION
+# only — the gating logic below is unchanged.
+_adc_credentials = None
+
+
+def _get_token():
+    explicit = os.environ.get("VCL_TOKEN")
+    if explicit:
+        return explicit
+    global _adc_credentials
+    if _adc_credentials is None:
+        _adc_credentials, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    if not _adc_credentials.valid:
+        _adc_credentials.refresh(_GoogleAuthRequest())
+    return _adc_credentials.token
 
 
 # --- config: where verdicts live -------------------------------------------
@@ -67,26 +91,22 @@ def read_source_tier(dp_resource):
     Returns (tier, drifted_dims, err). tier is 'verified'/'unverified'/None;
     drifted_dims is a list like ['semantic'] (which dimensions drifted), for the note.
     """
-    marker = "/entries/"
-    if marker not in dp_resource:
+    # Dataplex REST lookupEntry (CUSTOM view, verification aspect) with ADC/VCL_TOKEN.
+    # No gcloud dependency; the verdict LOGIC (find source_tier + drift_summary) is unchanged.
+    if "/entries/" not in dp_resource:
         return None, [], "not an entry resource"
-    entry_id = dp_resource.split(marker, 1)[1]
+    params = urllib.parse.urlencode(
+        {"entry": dp_resource, "view": "CUSTOM", "aspectTypes": ASPECT_TYPE})
+    url = f"{DATAPLEX_API}/projects/{PROJECT}/locations/{LOCATION}:lookupEntry?{params}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {_get_token()}")
     try:
-        p = subprocess.run(
-            ["gcloud", "dataplex", "entries", "lookup", entry_id,
-             "--entry-group", "@dataplex", "--location", LOCATION,
-             "--project", PROJECT, "--view", "CUSTOM",
-             "--aspect-types", ASPECT_TYPE, "--format", "json"],
-            capture_output=True, text=True, timeout=60,
-        )
-    except subprocess.TimeoutExpired:
-        return None, [], "verdict read timed out"
-    if p.returncode != 0:
-        return None, [], f"verdict read failed: {p.stderr.strip()[:200]}"
-    try:
-        data = json.loads(p.stdout) if p.stdout.strip() else {}
-    except json.JSONDecodeError:
-        return None, [], "verdict read returned non-JSON"
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        return None, [], f"verdict read failed: HTTP {e.code} {e.reason}"
+    except Exception as e:  # noqa: BLE001
+        return None, [], f"verdict read failed: {e}"
     for k, v in data.get("aspects", {}).items():
         if "verification" in k:
             d = v.get("data", {})
@@ -160,9 +180,10 @@ class WrapperHandler(BaseHTTPRequestHandler):
             return
 
 
-        token = os.environ.get("VCL_TOKEN")
-        if not token:
-            self._send({"error": "VCL_TOKEN env var not set"}, 500)
+        try:
+            token = _get_token()
+        except Exception as e:  # noqa: BLE001
+            self._send({"error": f"could not obtain credentials: {e}"}, 500)
             return
 
 
@@ -295,11 +316,15 @@ class WrapperHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = int(os.environ.get("VCL_PORT", "8080"))
-    server = HTTPServer(("127.0.0.1", port), WrapperHandler)
-    print(f"VCL wrapper (stage 1, passthrough) on http://127.0.0.1:{port}/mcp")
+    # Cloud Run sets PORT; locally fall back to VCL_PORT (default 8080). Bind 0.0.0.0 so
+    # Cloud Run can route to the container (127.0.0.1 would be unreachable there); locally
+    # loopback clients (the demo agent on 127.0.0.1) still connect fine.
+    port = int(os.environ.get("PORT", os.environ.get("VCL_PORT", "8080")))
+    host = os.environ.get("VCL_HOST", "0.0.0.0")
+    server = HTTPServer((host, port), WrapperHandler)
+    print(f"VCL wrapper on http://{host}:{port}/mcp")
     print("forwarding to", GOOGLE_MCP)
-    print("token present:", bool(os.environ.get("VCL_TOKEN")))
+    print("auth mode:", "VCL_TOKEN" if os.environ.get("VCL_TOKEN") else "ADC (service account)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

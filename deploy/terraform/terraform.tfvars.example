@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (gitignored). Placeholders only.
+project_id    = "your-project-id"
+location      = "us-central1"
+aspect_type   = "projects/your-project-number/locations/us-central1/aspectTypes/verification"
+invoker_email = "your-account@example.com"
+
+# Defaults are usually fine:
+# service_name = "vcl-wrapper"
+# repo_id      = "vcl"
+# image_tag    = "latest"

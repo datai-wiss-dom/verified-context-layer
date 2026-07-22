@@ -1,0 +1,9 @@
+# Build the wrapper image from the repo root (so src/ + deploy/Dockerfile are in context)
+# and push it to Artifact Registry. Invoked by deploy/build.sh.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "deploy/Dockerfile", "-t", "${_IMAGE}", "."]
+images:
+  - "${_IMAGE}"
+options:
+  logging: CLOUD_LOGGING_ONLY
