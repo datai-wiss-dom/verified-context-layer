@@ -172,7 +172,7 @@ determinism to AI.
   for text-only results. Do NOT change the wrapper to satisfy the client.
 
 
-**Cloud Run (verified live on a fresh project `vcl-project-spark`):**
+**Cloud Run (verified live on a fresh, independent project):**
 - Wrapper must: fall back to ADC (`google.auth`) when `VCL_TOKEN` unset; bind `0.0.0.0:$PORT`;
   read the verdict via Dataplex REST (not a localhost assumption).
 - Two-layer auth: caller presents an identity token to pass Cloud Run invoker auth; the
