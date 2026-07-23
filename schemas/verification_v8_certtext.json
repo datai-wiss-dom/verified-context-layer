@@ -155,6 +155,24 @@
         "displayName": "Certified Text",
         "description": "The composed-context text (what the semantic anchor hashed) at last seal. The triage uses this as the OLD baseline for the diff, so both sides of the comparison come from VCL state - never hand-supplied. This is the exact last-certified version."
       }
+    },
+    {
+      "name": "sealed_by",
+      "type": "string",
+      "index": 10,
+      "annotations": {
+        "displayName": "Sealed By",
+        "description": "Provenance (who): the authorizing party/identity that ran this seal. A 'verified' verdict must name who certified it."
+      }
+    },
+    {
+      "name": "seal_event_id",
+      "type": "string",
+      "index": 11,
+      "annotations": {
+        "displayName": "Seal Event ID",
+        "description": "Provenance (why): a traceable id for the event that caused this seal (the re-cert action / drift alert). Prevents an anchor asserting 'verified' with no traceable cause."
+      }
     }
   ]
 }

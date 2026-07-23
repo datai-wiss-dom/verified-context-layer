@@ -36,6 +36,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 
 
@@ -389,6 +390,17 @@ def seal(args):
         certified_text = sem_text  # store the exact text the semantic anchor hashed
 
 
+    # Provenance (who authorized this seal) and a traceable causing event (why it happened).
+    # An anchor asserting "verified" with no traceable cause is a conclusion without
+    # provenance. These are metadata only; they do not enter the verdict computation.
+    sealed_by = args.sealed_by or os.environ.get("VCL_SEALED_BY")
+    if not sealed_by:
+        r = subprocess.run(["gcloud", "config", "get-value", "account"],
+                           capture_output=True, text=True)
+        sealed_by = r.stdout.strip() or "unknown"
+    seal_event_id = (args.seal_event_id or os.environ.get("VCL_SEAL_EVENT_ID")
+                     or str(uuid.uuid4()))
+
     claim = {
         "verified_at": now_iso(),
         "source_tier": "verified",
@@ -397,6 +409,8 @@ def seal(args):
         "source_etag": anchors[0]["fingerprint"],
         "drift_summary": [],
         "drifted_hash": "",
+        "sealed_by": sealed_by,
+        "seal_event_id": seal_event_id,
         # drift_detected_at omitted entirely: it's a datetime and cannot be "".
         # Absent means "no drift pin" (KC preserves absent optional fields).
     }
@@ -404,6 +418,7 @@ def seal(args):
         claim["certified_text"] = certified_text
     write_claim(args, claim)
     print(f"SEAL: wrote {len(anchors)} anchor(s), source_tier=verified.")
+    print(f"      sealed_by={sealed_by}  seal_event_id={seal_event_id}")
     return 0
 
 
@@ -658,6 +673,12 @@ def build_parser():
                    help="ASSET=SCAN_ID:SLA_HOURS  (repeatable). "
                         "ASSET is a substring matched against the asset name. "
                         "Needed at seal (to capture) and at check/enforce (to re-read).")
+    p.add_argument("--sealed-by", default=None,
+                   help="seal only: provenance identity of the authorizing party "
+                        "(default: VCL_SEALED_BY env, else the active gcloud account).")
+    p.add_argument("--seal-event-id", default=None,
+                   help="seal only: traceable id of the event that caused this seal "
+                        "(default: VCL_SEAL_EVENT_ID env, else a generated uuid4).")
     return p
 
 
