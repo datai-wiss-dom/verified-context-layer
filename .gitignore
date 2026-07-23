@@ -35,3 +35,6 @@ manageskills/
 # Lock files
 *.lock
 uv.lock
+
+# infra generated IDs (project-number resource paths; not secrets but not for public repo)
+infra/channels.env
