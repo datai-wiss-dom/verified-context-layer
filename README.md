@@ -189,14 +189,13 @@ Each top-level directory, what it is, the phase that built it, and status:
 
 Top-level files: `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (agent instructions), `README.md`, `STATUS.md`, `pyproject.toml` / `requirements.txt` / `uv.lock`. (`manageskills/` is gitignored local tooling, not part of the repo.)
 
-### Two alerting paths
+### Alerting — primary path and an alternative
 
-Both fire on the **same** drift event (`enforce` setting `source_tier=unverified`) but are independent and serve different audiences:
+**Primary: Cloud Logging → Cloud Monitoring.** `src/vcl.py enforce` emits a structured `VCL_DRIFT_DETECTED` entry to `logs/vcl-drift`; the `infra/` policy **VCL Drift Detected** matches it and notifies Slack + email. Its notification `documentation` carries **both** links — the Knowledge Catalog **SEE** url (the drifted entry, the centerpiece) first, then the Cloud Shell **walkthrough** deep link (the re-cert action) — so a single alert takes a steward from "it drifted" → "here's the entry" → "re-certify here." Built by `infra/` (alerting phase). *This is the primary notification plane.*
 
-1. **Human re-cert — Pub/Sub → walkthrough.** `steward/bin/drift_watcher.py` reads the verdict and, when unverified, publishes a Pub/Sub alert carrying a Cloud Shell deep link to the AI-classified walkthrough (cosmetic vs substantive). Routes a steward to the exact re-certification action. *(steward phase)*
-2. **Ops alert — Cloud Logging → Monitoring.** `src/vcl.py enforce` emits a structured `VCL_DRIFT_DETECTED` entry to `logs/vcl-drift`; the `infra/` policy **VCL Drift Detected** matches it and notifies Slack + email. Broadcasts "drift happened." *(alerting phase)*
+**Alternative (superseded): Pub/Sub → walkthrough.** `steward/bin/drift_watcher.py` is a **local trigger** that reads the verdict and publishes a Pub/Sub alert carrying the walkthrough deep link. It predates the Monitoring policy and is **superseded** by it as the notification plane; it remains in the repo **unchanged** as an alternative/local trigger and is not wired into the primary flow. *(steward phase)*
 
-`enforce` is the common trigger — it writes the verdict *and* the log. The paths diverge downstream: Path 1 reads the verdict via Pub/Sub ("what to do"); Path 2 reads the log via Monitoring ("it happened"). Neither is the gate — the wrapper gates only on the verification aspect. They are additive; run either or both.
+Both react to the same drift (`enforce` setting `source_tier=unverified`), and `enforce` writes the verdict *and* the log. Neither is the gate — the wrapper gates only on the verification aspect.
 
 See **[STATUS.md](STATUS.md)** for the full built/deferred breakdown and the demo run sequence.
 
