@@ -172,13 +172,33 @@ demonstration of verification currency as a platform property, not a shipped pro
 ## Repository layout
 
 
-```
-src/            vcl.py, vcl_wrapper.py, vcl_triage.py
-schemas/        current verification aspect schema (+ archive/ of the version history)
-docs/           operations reference, architecture notes
-spec/           agent build spec (requirements, lesson, exercise, plan)
-agents/         generated demo agent (built from spec/)
-```
+Each top-level directory, what it is, the phase that built it, and status:
+
+| Directory | What it is | Phase | Status |
+|---|---|---|---|
+| `src/` | Deterministic core: `vcl.py` (seal/check/enforce verifier), `vcl_wrapper.py` (whole-or-nothing MCP gate), `vcl_triage.py` (LLM advisory) | Core | Proven live |
+| `setup/` | Bootstrap the GCP env — BigQuery data, Data Product, aspect-types, DQ scan, IAM (`bootstrap/` + `terraform/`) | Setup | Proven (env live) |
+| `schemas/` | Aspect-type MetadataTemplates (`verification_v8_certtext.json`, `governance_drift.json`) | Setup + Steward | Applied |
+| `deploy/` | Wrapper Cloud Run deploy (`Dockerfile`, `cloudbuild.yaml`, `terraform/`) | Cloud Run | Deployed (`vcl-wrapper` live) |
+| `audit/` | Firestore advisory-audit store (`vcl-audit`) terraform + DB-scoped IAM | Triage audit | Proven (round-tripped) |
+| `steward/` | Human re-cert workflow — Cloud Shell walkthroughs, `bin/write_drift_aspect.py` (display aspect), `bin/drift_watcher.py` (Pub/Sub alerter), `terraform/` | Steward workflow | Proven (browser loop) |
+| `infra/` | Cloud Monitoring drift-alerting — enable APIs, notification channels, log-match alert policy | Alerting | Channels + policy live; Slack delivery deferred |
+| `vcl_audience_demo/` | Demo agent that consumes the wrapper (`agent.py`, `run_demo.py`) | Demo | Proven (verified vs withheld) |
+| `docs/` | Reference (`reference/`) + archived lessons (`archive/`) | Ongoing | Reference |
+| `.claude/` | Project constitution + phase specs + skills (`current/ARCHITECTURE.md`, `BUILD_GUIDELINES`, `commands/`) | Governance | Living |
+
+Top-level files: `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (agent instructions), `README.md`, `STATUS.md`, `pyproject.toml` / `requirements.txt` / `uv.lock`. (`manageskills/` is gitignored local tooling, not part of the repo.)
+
+### Two alerting paths
+
+Both fire on the **same** drift event (`enforce` setting `source_tier=unverified`) but are independent and serve different audiences:
+
+1. **Human re-cert — Pub/Sub → walkthrough.** `steward/bin/drift_watcher.py` reads the verdict and, when unverified, publishes a Pub/Sub alert carrying a Cloud Shell deep link to the AI-classified walkthrough (cosmetic vs substantive). Routes a steward to the exact re-certification action. *(steward phase)*
+2. **Ops alert — Cloud Logging → Monitoring.** `src/vcl.py enforce` emits a structured `VCL_DRIFT_DETECTED` entry to `logs/vcl-drift`; the `infra/` policy **VCL Drift Detected** matches it and notifies Slack + email. Broadcasts "drift happened." *(alerting phase)*
+
+`enforce` is the common trigger — it writes the verdict *and* the log. The paths diverge downstream: Path 1 reads the verdict via Pub/Sub ("what to do"); Path 2 reads the log via Monitoring ("it happened"). Neither is the gate — the wrapper gates only on the verification aspect. They are additive; run either or both.
+
+See **[STATUS.md](STATUS.md)** for the full built/deferred breakdown and the demo run sequence.
 
 
 ## Requirements
