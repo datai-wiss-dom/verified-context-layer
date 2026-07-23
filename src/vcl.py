@@ -522,6 +522,67 @@ def check(args):
 
 
 
+def _observe_current(args, anc):
+    """Re-derive the CURRENT fingerprint for one anchor, for the drift log's observed_etag.
+    Reuses the exact primitives evaluate() uses; reads only, compares nothing, writes
+    nothing. Semantic is supplied by the caller (enforce already recomputes it for the pin),
+    so only technical/quality are re-read here. Returns None when it cannot be observed."""
+    dim = anc.get("dimension", "")
+    name = anc.get("asset", "")
+    if dim == "technical":
+        fp, err = current_fingerprint("technical", name)
+        return None if err else fp
+    if dim == "quality":
+        scan_id = args.qcheck_map.get(_asset_key(name))
+        if not scan_id:
+            return None
+        passed, last_run, _resource, qerr = read_scan_quality(
+            args.project, args.location, scan_id)
+        return None if qerr else quality_fingerprint(passed, last_run)
+    return None
+
+
+def _emit_drift_logs(args, drift, claim, semantic_observed=None):
+    """ADDITIVE, best-effort telemetry. Emits ONE structured Cloud Logging entry per
+    detected divergence to the 'vcl-drift' log at severity WARNING, for a downstream alert
+    policy to consume. It writes NOTHING to the verdict or the aspect, does not touch the
+    anchor comparison or the schema, and never affects enforce's return: any logging
+    failure is swallowed with a printed note. Emitted via `gcloud logging write` to match
+    this module's gcloud-shelling and avoid a new runtime dependency."""
+    anchors = {(a.get("dimension"), a.get("asset")): a for a in claim.get("anchors", [])}
+    sealed_at = claim.get("verified_at")
+    detected_at = now_iso()
+    steward = os.environ.get("VCL_STEWARD") or os.environ.get("VCL_OWNER_EMAIL")
+    for name, dim, _reason in drift:
+        anc = anchors.get((dim, name), {})
+        short = name.split("/")[-1] or name
+        observed = semantic_observed if dim == "semantic" else _observe_current(args, anc)
+        payload = {
+            "event_type": "VCL_DRIFT_DETECTED",
+            "anchor_id": f"{dim}:{short}",
+            "asset_fqn": anc.get("asset", name),
+            "measured_against": anc.get("measured_against"),
+            "sealed_etag": anc.get("fingerprint"),
+            "observed_etag": observed,
+            "sealed_at": sealed_at,
+            "detected_at": detected_at,
+            "steward": steward,
+        }
+        # freshness_sla_hours: present only on quality anchors -> emit only when present.
+        # Technical (and semantic) anchors OMIT the key entirely (absent, never zero).
+        if "freshness_sla_hours" in anc:
+            payload["freshness_sla_hours"] = anc["freshness_sla_hours"]
+        p = subprocess.run(
+            ["gcloud", "logging", "write", "vcl-drift", json.dumps(payload),
+             "--payload-type=json", "--severity=WARNING", "--project", args.project],
+            capture_output=True, text=True)
+        if p.returncode != 0:
+            print(f"[drift-log emit failed ({payload['anchor_id']}): "
+                  f"{p.stderr.strip()[:200]}]")
+
+
+
+
 def enforce(args):
     verdict, drift, claim = evaluate(args)
     if verdict in ("NO_CLAIM", "NO_ANCHORS"):
@@ -542,6 +603,12 @@ def enforce(args):
             args.project, args.location, args.entry_group, args.dp_entry, args.dp_resource)
         if not sem_err:
             pin_hash = f"sha256:{cur_sha}"
+
+
+    # Additive drift telemetry: one structured WARNING log per detected divergence, for a
+    # downstream alert policy. Emitted before the no-change short-circuit so every enforce
+    # run that observes drift reports it. Best-effort; never affects the verdict or write.
+    _emit_drift_logs(args, drift, claim, semantic_observed=pin_hash)
 
 
     if current == target and claim.get("drift_summary", []) == drifted_dims \
