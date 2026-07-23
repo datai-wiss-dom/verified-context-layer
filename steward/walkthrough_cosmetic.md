@@ -11,11 +11,14 @@
     not duplicated here.
   - the re-certify command derives PROJECT + project NUMBER from your Cloud Shell session,
     so no real project ids are baked into this public file.
-  Directives are all documented: one H1 title, H2 steps, and a $-prefixed terminal-input
-  code block (renders a "copy to Cloud Shell" button). No spotlight-pointer — the only
+  Directives: one H1 title, H2 steps, plain fenced code blocks (Cloud Shell renders a
+  "copy to Cloud Shell" button and copies the block VERBATIM — so NO leading "$" prompt
+  marker; a copied "$ " runs as a bogus command). No spotlight-pointer — the only
   documented spotlight for this page (devshell-activate-button) is the "Activate Cloud
   Shell" button, which does not exist while the walkthrough is already running in Cloud
-  Shell. The DP id defaults to the demo product; override with `export DP_ID=...`.
+  Shell. The Open-in-Cloud-Shell link has no project parameter, so the session starts with
+  NO active project — the steward sets it (first block below); the command self-derives the
+  project number from it. The DP id defaults to the demo product; override `export DP_ID=`.
 -->
 
 ## What drifted
@@ -44,13 +47,18 @@ Because the change is cosmetic, you can re-certify now. This re-runs the determi
 verifier against the live state — it re-fingerprints the data product; it does not flip a
 status field.
 
-First make sure your project is set (the tab that opened this guide is already in your
-project; if `gcloud config get-value project` is empty, run
-`gcloud config set project YOUR_PROJECT`). Then click the copy button on the command below
-to send it to the Cloud Shell terminal and press **Enter**:
+**First, point Cloud Shell at your project** — this session starts with none set. Replace
+`PROJECT_ID` with the project the data product lives in (it is the `project=` value in the
+entry URL you opened), then click copy and press **Enter**:
 
 ```
-$ PROJECT="${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"; NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"; DP_ID="${DP_ID:-ecommerce-customer-intelligence}"; python3 src/vcl.py seal --project "$PROJECT" --project-number "$NUMBER" --location us-central1 --entry-group @dataplex --dp-entry "projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --dp-resource "projects/$NUMBER/locations/us-central1/entryGroups/@dataplex/entries/projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --aspect-type "projects/$NUMBER/locations/us-central1/aspectTypes/verification" --quality-scan "customers=customers-quality:24" && python3 steward/bin/write_drift_aspect.py --resolve
+gcloud config set project PROJECT_ID
+```
+
+**Then re-certify** — click copy on the command below and press **Enter**:
+
+```
+PROJECT="${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"; if [ -z "$PROJECT" ]; then echo ">> No project set — run the 'gcloud config set project' command above first, then re-run this."; else NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"; DP_ID="${DP_ID:-ecommerce-customer-intelligence}"; python3 src/vcl.py seal --project "$PROJECT" --project-number "$NUMBER" --location us-central1 --entry-group @dataplex --dp-entry "projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --dp-resource "projects/$NUMBER/locations/us-central1/entryGroups/@dataplex/entries/projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --aspect-type "projects/$NUMBER/locations/us-central1/aspectTypes/verification" --quality-scan "customers=customers-quality:24" && python3 steward/bin/write_drift_aspect.py --resolve; fi
 ```
 
 When it prints `source_tier=verified`, the data product is certified again and the Verified
