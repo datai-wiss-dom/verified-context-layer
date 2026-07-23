@@ -31,12 +31,23 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-PROJECT = os.environ["VCL_PROJECT"]
-PROJECT_NUMBER = os.environ["VCL_PROJECT_NUMBER"]
-LOCATION = os.environ["VCL_LOCATION"]
+def _sh(cmd):
+    return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
+
+
+# Config self-derives so this runs BOTH locally (with repo-root .env) and in Cloud Shell
+# (no .env in the clone): fall back to GOOGLE_CLOUD_PROJECT / `gcloud config` for the
+# project and `gcloud projects describe` for the number; structural defaults for the rest.
+PROJECT = (os.environ.get("VCL_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+           or _sh(["gcloud", "config", "get-value", "project"]))
+PROJECT_NUMBER = (os.environ.get("VCL_PROJECT_NUMBER")
+                  or _sh(["gcloud", "projects", "describe", PROJECT,
+                          "--format=value(projectNumber)"]))
+LOCATION = os.environ.get("VCL_LOCATION", "us-central1")
 DP_ID = os.environ.get("VCL_DP_ID", "ecommerce-customer-intelligence")
 ENTRY_GROUP = os.environ.get("VCL_ENTRY_GROUP", "@dataplex")
-ASPECT_TYPE = os.environ["VCL_ASPECT_TYPE"]  # the verification aspect-type (to READ)
+ASPECT_TYPE = (os.environ.get("VCL_ASPECT_TYPE")
+               or f"projects/{PROJECT_NUMBER}/locations/{LOCATION}/aspectTypes/verification")
 
 DP_ENTRY = f"projects/{PROJECT_NUMBER}/locations/{LOCATION}/dataProducts/{DP_ID}"
 DRIFT_KEY = f"{PROJECT_NUMBER}.{LOCATION}.governance-drift"

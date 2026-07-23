@@ -50,11 +50,14 @@ project; if `gcloud config get-value project` is empty, run
 to send it to the Cloud Shell terminal and press **Enter**:
 
 ```
-$ PROJECT="${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"; NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"; DP_ID="${DP_ID:-ecommerce-customer-intelligence}"; python3 src/vcl.py seal --project "$PROJECT" --project-number "$NUMBER" --location us-central1 --entry-group @dataplex --dp-entry "projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --dp-resource "projects/$NUMBER/locations/us-central1/entryGroups/@dataplex/entries/projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --aspect-type "projects/$NUMBER/locations/us-central1/aspectTypes/verification" --quality-scan "customers=customers-quality:24"
+$ PROJECT="${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"; NUMBER="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')"; DP_ID="${DP_ID:-ecommerce-customer-intelligence}"; python3 src/vcl.py seal --project "$PROJECT" --project-number "$NUMBER" --location us-central1 --entry-group @dataplex --dp-entry "projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --dp-resource "projects/$NUMBER/locations/us-central1/entryGroups/@dataplex/entries/projects/$NUMBER/locations/us-central1/dataProducts/$DP_ID" --aspect-type "projects/$NUMBER/locations/us-central1/aspectTypes/verification" --quality-scan "customers=customers-quality:24" && python3 steward/bin/write_drift_aspect.py --resolve
 ```
 
 When it prints `source_tier=verified`, the data product is certified again and the Verified
-Context Layer delivers its context to agents once more.
+Context Layer delivers its context to agents once more. The command then flips the
+Governance Drift aspect on the entry from `PENDING_REVIEW` to `RESOLVED` (display-only
+housekeeping — the gate never reads that aspect; the deterministic seal is what actually
+certified the product).
 
 ## Conclusion
 
