@@ -38,3 +38,11 @@ uv.lock
 
 # infra generated IDs (project-number resource paths; not secrets but not for public repo)
 infra/channels.env
+
+# Publication — local agent tooling + authored instructions (untracked, kept on disk)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.agent/
+docs/archive/

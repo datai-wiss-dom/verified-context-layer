@@ -184,10 +184,9 @@ Each top-level directory, what it is, the phase that built it, and status:
 | `steward/` | Human re-cert workflow — Cloud Shell walkthroughs, `bin/write_drift_aspect.py` (display aspect), `bin/drift_watcher.py` (Pub/Sub alerter), `terraform/` | Steward workflow | Proven (browser loop) |
 | `infra/` | Cloud Monitoring drift-alerting — enable APIs, notification channels, log-match alert policy | Alerting | Channels + policy live; Slack delivery deferred |
 | `vcl_audience_demo/` | Demo agent that consumes the wrapper (`agent.py`, `run_demo.py`) | Demo | Proven (verified vs withheld) |
-| `docs/` | Reference (`reference/`) + archived lessons (`archive/`) | Ongoing | Reference |
-| `.claude/` | Project constitution + phase specs + skills (`current/ARCHITECTURE.md`, `BUILD_GUIDELINES`, `commands/`) | Governance | Living |
+| `docs/` | Reference (`reference/`), the control-plane design (`CONTROL_PLANE_DESIGN.md`), and diagrams (`diagrams/`) | Ongoing | Reference |
 
-Top-level files: `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (agent instructions), `README.md`, `STATUS.md`, `pyproject.toml` / `requirements.txt` / `uv.lock`. (`manageskills/` is gitignored local tooling, not part of the repo.)
+Top-level files: `README.md`, `STATUS.md`, `pyproject.toml` / `requirements.txt` / `uv.lock`.
 
 ### Alerting — primary path and an alternative
 
