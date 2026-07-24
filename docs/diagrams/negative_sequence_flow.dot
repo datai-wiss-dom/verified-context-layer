@@ -59,7 +59,7 @@ digraph negative_flow {
   subgraph cluster_7 {
     label="7 — Failure modes degrade SAFE, not open"; fontsize=11; style="rounded"; color="#2f7d3a";
     a7 [label="Something fails or is missing", fillcolor="#fdf0d5", color="#b8860b"];
-    o7 [label="• audit write fails → advice still prints, exit 0 (PROVEN)\l• AI classification missing/unknown → alert defaults to the\l&nbsp;&nbsp;SUBSTANTIVE walkthrough (no seal command). Fail-safe.\l• current text ≠ drifted_hash → triage REFUSES (atomicity)\l", fillcolor="#e7f6ea", color="#2f7d3a"];
+    o7 [label="• audit write fails → advice still prints, exit 0 (PROVEN)\l• EVERY alert lands on the no-seal walkthrough (substantive) by default;\l&nbsp;&nbsp;the re-cert command is reachable ONLY via an onward link, after the\l&nbsp;&nbsp;steward reads the classification — fail-safe by ROUTING, not a warning\l• current text ≠ drifted_hash → triage REFUSES (atomicity)\l", fillcolor="#e7f6ea", color="#2f7d3a"];
     { rank=same; a7 -> o7 [label="fail-safe, not fail-open"]; }
   }
   subgraph cluster_8 {
