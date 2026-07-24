@@ -57,6 +57,27 @@ for cid in "${SLACK_ID}" "${EMAIL_ID}"; do
 done
 echo "channels: slack=${SLACK_ID} email=${EMAIL_ID}"
 
+# --- alert documentation: SEE url + the FAIL-SAFE deep link, built from env so a fresh
+# provision reproduces the routing (no hardcoded ids/urls). The deep link targets
+# steward/walkthrough_substantive.md — the walkthrough with NO re-certify command — so EVERY
+# alert lands on the safe default; the cosmetic re-cert is reached only via an onward link
+# there, after the steward reads the classification. ---
+LOC="${VCL_LOCATION:-us-central1}"
+DP_ID="${VCL_DP_ID:-ecommerce-customer-intelligence}"
+GIT_REPO="${VCL_GIT_REPO:?set VCL_GIT_REPO (the public repo) so the alert deep link resolves}"
+SEE_URL="https://console.cloud.google.com/dataplex/govern/data-products/projects/${PROJECT_ID}/locations/${LOC}/dataProducts/${DP_ID}?project=${PROJECT_ID}"
+DEEP_SUB="https://ssh.cloud.google.com/cloudshell/open?cloudshell_git_repo=${GIT_REPO}&cloudshell_tutorial=steward/walkthrough_substantive.md"
+POLICY_DOC="$(cat <<EOF
+**A Verified Context Layer data product has drifted** — its governed context is being withheld from agents until a steward re-certifies it.
+
+**1. SEE the drifted entry** (Knowledge Catalog; open its *Governance Drift* aspect to read which dimension drifted and the AI cosmetic/substantive assessment):
+${SEE_URL}
+
+**2. REVIEW — open the walkthrough** (Cloud Shell). It opens on the safe default: a review guide with NO re-certify command. Read the assessment on the entry, then it routes you — substantive: investigate; cosmetic: an onward link to the re-certify step:
+${DEEP_SUB}
+EOF
+)"
+
 # --- idempotency: look up by displayName ---
 find_policy() {
   gcloud alpha monitoring policies list --project="${PROJECT_ID}" \
@@ -115,6 +136,18 @@ EOF
   policy_name="$(find_policy)"
 fi
 
+# --- ensure documentation (runs whether created or found): the fail-safe deep link now
+# lives in code, not only in the live resource. Idempotent — update only if it differs. ---
+cur_doc="$(gcloud alpha monitoring policies describe "${policy_name}" --project="${PROJECT_ID}" \
+  --format="value(documentation.content)" 2>/dev/null || true)"
+if [[ "${cur_doc}" != "${POLICY_DOC}" ]]; then
+  echo "policy documentation: syncing (SEE url + substantive deep link)"
+  printf '%s' "${POLICY_DOC}" | gcloud alpha monitoring policies update "${policy_name}" \
+    --project="${PROJECT_ID}" --documentation-from-file=/dev/stdin --documentation-format=text/markdown >/dev/null
+else
+  echo "policy documentation: already matches (no-op)"
+fi
+
 # --- round-trip verification: READ the resulting policy and confirm each field ---
 if [[ -z "${policy_name}" ]]; then
   echo "MISMATCH: policy not found after create." >&2
@@ -126,6 +159,8 @@ got_filter="$(gcloud alpha monitoring policies describe "${policy_name}" --proje
   --format="value(conditions[0].conditionMatchedLog.filter)" 2>/dev/null || true)"
 got_channels="$(gcloud alpha monitoring policies describe "${policy_name}" --project="${PROJECT_ID}" \
   --format="value(notificationChannels)" 2>/dev/null || true)"
+got_doc="$(gcloud alpha monitoring policies describe "${policy_name}" --project="${PROJECT_ID}" \
+  --format="value(documentation.content)" 2>/dev/null || true)"
 
 fail=0
 if [[ "${got_period}" != "3600s" ]]; then
@@ -143,10 +178,16 @@ fi
 if [[ "${got_channels}" == *"${RESERVED_CHANNEL_ID}"* ]]; then
   echo "MISMATCH: reserved channel ${RESERVED_CHANNEL_ID} is attached — must not be!" >&2; fail=1
 fi
+if [[ "${got_doc}" != *"cloudshell_tutorial=steward/walkthrough_substantive.md"* ]]; then
+  echo "MISMATCH documentation: expected the deep link to target steward/walkthrough_substantive.md; not found" >&2; fail=1
+fi
+if [[ "${got_doc}" == *"cloudshell_tutorial=steward/walkthrough_cosmetic.md"* ]]; then
+  echo "MISMATCH documentation: must NOT default to walkthrough_cosmetic.md (fail-safe routing)" >&2; fail=1
+fi
 
 if [[ "${fail}" -ne 0 ]]; then
   echo "RESULT: FAIL — policy verification mismatch (see above)." >&2
   exit 1
 fi
 echo "policy verified: ${policy_name}"
-echo "RESULT: OK — 'VCL Drift Detected' present; log-match filter, 1h rate limit, slack+email attached."
+echo "RESULT: OK — 'VCL Drift Detected' present; log-match filter, 1h rate limit, slack+email, and documentation deep-links walkthrough_substantive.md (fail-safe)."

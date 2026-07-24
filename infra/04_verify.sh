@@ -10,6 +10,8 @@
 #   4. alert policy exists, enabled, attached to EXACTLY the two expected channels,
 #      notification rate limit set
 #   5. logName projects/<project>/logs/vcl-drift has >=1 VCL_DRIFT_DETECTED entry in 7d
+#   6. the alert policy's documentation deep link targets the FAIL-SAFE walkthrough
+#      (steward/walkthrough_substantive.md), not the cosmetic one
 #
 # Shared infra/ contract: set -euo pipefail; PROJECT_ID/PROJECT_NUM derived at top
 # (no hardcoded ids). This script only reads.
@@ -99,4 +101,13 @@ hit="$(gcloud logging read "logName=\"${LOG}\" AND jsonPayload.event_type=\"VCL_
 [[ -n "${hit}" ]] || fail "drift log (7d)" ">=1 VCL_DRIFT_DETECTED entry in ${LOG}" "none in last 7d"
 pass "drift log (7d)" "found entry at ${hit}"
 
-echo "RESULT: OK — all 5 checks passed."
+# ---- 6. alert routes to the FAIL-SAFE walkthrough (documentation deep link) ----
+doc="$(gcloud alpha monitoring policies describe "${pname}" --project="${PROJECT_ID}" \
+        --format='value(documentation.content)' 2>/dev/null || true)"
+[[ "${doc}" == *"cloudshell_tutorial=steward/walkthrough_substantive.md"* ]] \
+  || fail "alert deep link" "targets steward/walkthrough_substantive.md (no-seal default)" "not present"
+[[ "${doc}" != *"cloudshell_tutorial=steward/walkthrough_cosmetic.md"* ]] \
+  || fail "alert deep link" "must NOT default to walkthrough_cosmetic.md" "cosmetic link present"
+pass "alert routing" "deep link targets walkthrough_substantive.md (fail-safe default)"
+
+echo "RESULT: OK — all 6 checks passed."
