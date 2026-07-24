@@ -1,0 +1,46 @@
+%% VCL - C4 Deployment view
+%% Source: the verified Step-1 inventory (read from actual files; nothing from memory).
+%% Grouped per subsystem: validator, gate, triage, audit, steward, alerting.
+%% Each container names its deployment node, identity/SA, what it may read/write, and the
+%% trust boundary it sits inside. Deployment nodes state DEPLOYED SERVICE vs on-demand SCRIPT.
+%% UNVERIFIED items are labelled UNVERIFIED rather than asserted.
+C4Deployment
+    title VCL Deployment - subsystems, identities, trust boundaries
+
+    Deployment_Node(ws, "Operator workstation", "local CLI - on-demand SCRIPTS"){
+        Container(validator, "VALIDATOR - vcl.py seal/check/enforce", "Python CLI - script", "Deterministic AI-free. Identity- invoking OPERATOR; runs-as vcl-validator SA UNVERIFIED. WRITES verification verdict + logs/vcl-drift. READS BQ etags, DQ scan, DP context. Upholds INV-1 INV-2")
+        Container(triage, "TRIAGE - vcl_triage.py", "Python CLI - script", "Advisory only. Identity- operator ADC; runs-as vcl-triage SA UNVERIFIED. READS pinned drift text; calls Vertex. WRITES ONLY Firestore vcl-audit. Never writes verdict. Upholds INV-3")
+        Container(watcher, "STEWARD watcher - drift_watcher.py - SUPERSEDED", "Python CLI - script", "Identity- operator. READS verdict; PUBLISHES Pub/Sub. Superseded by the alert policy")
+        Container(demo, "DEMO agent - vcl_audience_demo", "ADK runner - script", "Naive about VCL. CALLS the gate over MCP; queries BQ safe views. Identity- operator")
+    }
+
+    Deployment_Node(cs, "Cloud Shell", "browser - on-demand by STEWARD"){
+        Container(steward, "STEWARD re-cert - walkthrough + write_drift_aspect.py", "Cloud Shell - script", "Identity- the STEWARD gcloud. Runs vcl.py seal -verdict- and writes governance-drift display aspect. Opened by the PUSHED deep link - load-bearing path")
+    }
+
+    Deployment_Node(gcp, "Google Cloud project - TRUST BOUNDARY", "GCP project"){
+        Deployment_Node(run, "Cloud Run - us-central1", "managed - DEPLOYED SERVICE"){
+            Container(gate, "GATE - vcl_wrapper.py", "Cloud Run service", "READ-ONLY runtime. Identity- SA vcl-wrapper-run with catalogViewer dataProductsViewer mcp.toolUser. READS verification aspect ONLY. Delivers iff source_tier equals verified else WITHHOLDS. Writes nothing. Upholds INV-4 INV-5 INV-6")
+        }
+        Deployment_Node(mgd, "Managed GCP services", "GCP - managed"){
+            Container(catalog, "Knowledge Catalog / Dataplex", "managed", "DP entry + verification, governance-drift, overview aspects + customers-quality DQ scan")
+            Container(bq, "BigQuery", "managed", "ecommerce base + ecommerce_views customers_safe PII-safe")
+            Container(auditdb, "AUDIT store - Firestore vcl-audit", "managed - Native", "collection vcl_triage_audit. triage SA scoped to this database only")
+            Container(alerting, "ALERTING - Monitoring + Logging + Secret Manager", "managed", "logs/vcl-drift matched by policy VCL Drift Detected then Slack + email. Secrets vcl-slack-bot-token, vcl-slack-signing-secret")
+            Container(vertex, "Vertex AI", "managed", "gemini-2.5-flash - triage + demo")
+        }
+    }
+
+    Rel(validator, catalog, "write verdict / read anchors", "gcloud + Dataplex API")
+    Rel(validator, bq, "read table etags", "bq")
+    Rel(validator, alerting, "emit VCL_DRIFT_DETECTED", "gcloud logging write")
+    Rel(gate, catalog, "read verdict only", "Dataplex REST")
+    Rel(demo, gate, "lookup_context", "MCP over HTTPS")
+    Rel(demo, bq, "query safe views", "BigQuery")
+    Rel(triage, vertex, "classify cosmetic vs substantive", "Vertex")
+    Rel(triage, auditdb, "append advice", "Firestore")
+    Rel(steward, catalog, "seal verdict + write display aspect", "gcloud")
+    Rel(watcher, catalog, "read verdict", "gcloud")
+    Rel(alerting, steward, "alert with SEE url + deep link", "Slack / email")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")

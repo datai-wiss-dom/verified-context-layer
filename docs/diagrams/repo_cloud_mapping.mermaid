@@ -1,0 +1,79 @@
+%% Repository & Cloud Architecture Mapping
+%% Source: the verified Step-1 inventory (read from actual .tf files + scripts; nothing
+%% composed from memory). Edge labels = the mechanism that creates or consumes the resource
+%% (terraform apply / gcloud / runtime API call / terraform file()).
+%% Red-bordered nodes are LOAD-BEARING: their paths CANNOT move.
+%%   - steward/walkthrough_*.md  -> referenced by the PUSHED Open-in-Cloud-Shell deep link
+%%   - schemas/*.json            -> referenced by terraform file()
+%%   - setup|deploy|audit|steward/terraform -> LIVE terraform state
+%% UNVERIFIED (not shown as facts): runs-as-dedicated-SA for vcl.py / vcl_triage.py;
+%% setup 'vcl-wrapper' SA usage; email-channel delivery.
+flowchart LR
+  classDef repo fill:#eaf0ff,stroke:#3355aa,color:#111;
+  classDef gcp  fill:#e8f7ec,stroke:#2f7d3a,color:#111;
+  classDef lb   stroke:#c0272d,stroke-width:3px;
+
+  subgraph REPO["Repository (directories)"]
+    direction TB
+    setup["setup/"]:::repo
+    schemas["schemas/*.json"]:::repo
+    deploy["deploy/"]:::repo
+    audit["audit/"]:::repo
+    steward["steward/"]:::repo
+    infra["infra/"]:::repo
+    src["src/ - vcl.py, wrapper, triage"]:::repo
+    demo["vcl_audience_demo/"]:::repo
+    wt["steward/walkthrough_*.md"]:::repo
+  end
+
+  subgraph CLOUD["Google Cloud - us-central1 unless -global-"]
+    direction TB
+    bq[("BigQuery: ecommerce + ecommerce_views")]:::gcp
+    scan["Dataplex DQ scan: customers-quality"]:::gcp
+    vaspect["Aspect-type: verification"]:::gcp
+    gaspect["Aspect-type: governance-drift"]:::gcp
+    dpc["DP entry + aspect CONTENT - verdict, overview, drift"]:::gcp
+    sas["Service accounts + IAM"]:::gcp
+    ar["Artifact Registry: vcl + image"]:::gcp
+    run["Cloud Run: vcl-wrapper"]:::gcp
+    fs["Firestore: vcl-audit"]:::gcp
+    ps["Pub/Sub: topic + sub -global-"]:::gcp
+    mon["Monitoring: policy + channels -global-"]:::gcp
+    log["Cloud Logging: logs/vcl-drift -global-"]:::gcp
+    sm["Secret Manager: slack secrets -multiregion-"]:::gcp
+    vertex["Vertex AI: gemini-2.5-flash"]:::gcp
+  end
+
+  %% ---- provisioning (create) ----
+  setup -->|terraform apply| bq
+  setup -->|terraform apply| scan
+  setup -->|terraform apply| vaspect
+  setup -->|terraform apply| sas
+  setup -->|bq load script| bq
+  setup -->|curl REST script| dpc
+  schemas -->|"terraform file()"| vaspect
+  schemas -->|"terraform file()"| gaspect
+  deploy -->|terraform apply| run
+  deploy -->|terraform apply| ar
+  deploy -->|gcloud builds submit| ar
+  audit -->|terraform apply| fs
+  steward -->|terraform apply| gaspect
+  steward -->|terraform apply| ps
+  infra -->|gcloud| mon
+  infra -->|gcloud ad-hoc| sm
+
+  %% ---- consumption / runtime (write + read) ----
+  src -->|"runtime API: seal writes verdict"| dpc
+  src -->|"runtime: gcloud logging write"| log
+  src -.->|deployed on| run
+  src -->|"runtime: Firestore write - triage"| fs
+  src -->|"runtime: Vertex call - triage"| vertex
+  run -->|"runtime: Dataplex REST - read verdict only"| dpc
+  steward -->|"runtime: gcloud - seal + display aspect"| dpc
+  demo -->|"runtime: MCP over HTTPS"| run
+  demo -->|"runtime: BigQuery - safe views"| bq
+  wt -->|"PUSHED Cloud Shell deep link"| steward
+
+  %% ---- load-bearing markers ----
+  class wt,schemas,setup,deploy,audit,steward lb
+  LB["LEGEND - red border = LOAD-BEARING, cannot move:<br/>walkthrough_*.md = pushed deep link · schemas/*.json = terraform file() · */terraform = live state"]:::lb
