@@ -1,0 +1,55 @@
+// VCL — State Transition Map (Graphviz DOT)
+// Render: dot -Tsvg state_transition_map.dot -o state_transition_map.svg
+// Two INDEPENDENT state machines:
+//   VERDICT  — the verification aspect; the gate reads ONLY this; delivers iff 'verified'.
+//   DISPLAY  — the governance-drift aspect; the gate MUST NOT read this.
+// Fixes vs the mermaid draft: 'Ungoverned' -> the real no-aspect state NO_CLAIM; note that
+// every non-'verified' tier withholds; added the RESOLVED -> PENDING_REVIEW re-drift edge.
+digraph state_transition_map {
+  rankdir=TB;
+  graph [fontname="Helvetica", labelloc="t", fontsize=17, label="VCL — State Transition Map",
+         pad=0.4, nodesep=0.55, ranksep=0.75, splines=spline, compound=true];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", margin="0.17,0.10"];
+  edge  [fontname="Helvetica", fontsize=9, color="#444"];
+
+  // ================= VERDICT =================
+  subgraph cluster_verdict {
+    label="VERDICT — verification aspect (the gate reads ONLY this)"; labelloc="t"; fontsize=12;
+    style="rounded,filled"; fillcolor="#eef4ff"; color="#3355aa"; margin=16;
+    v_start [shape=circle, width=0.14, label="", fillcolor="#333333", color="#333333"];
+    v_none  [label="No verdict — NO_CLAIM\lDP exists, never sealed\l", fillcolor="#eceff3", color="#667788"];
+    v_ver   [label="verified", fillcolor="#cdeccd", color="#2f7d3a"];
+    v_unv   [label="unverified", fillcolor="#f6d6d6", color="#c0272d"];
+    v_start -> v_none;
+    v_none  -> v_ver [label="seal"];
+    v_ver   -> v_ver [label="enforce: no drift\lcheck (read-only, never writes)\l"];
+    v_ver   -> v_unv [label="enforce: ≥1 anchor diverged"];
+    v_unv   -> v_unv [label="enforce re-runs —\lemits a log entry each time\l"];
+    v_unv   -> v_ver [label="seal — steward AUTHORIZES,\lengine RE-FINGERPRINTS\l"];
+  }
+  v_gatenote [shape=note, fontsize=9, fillcolor="#fffbe6", color="#b8860b",
+    label="Gate is BINARY: delivers only on 'verified'.\lEvery other value — unverified, draft,\lofficial_docs, or NO_CLAIM — WITHHOLDS.\l"];
+  v_ver -> v_gatenote [style=dashed, arrowhead=none, color="#b8860b"];
+
+  // ================= DISPLAY =================
+  subgraph cluster_display {
+    label="DISPLAY — Governance Drift aspect (the gate must NOT read this)"; labelloc="t"; fontsize=12;
+    style="rounded,filled"; fillcolor="#f3eefb"; color="#6b46c1"; margin=16;
+    d_start [shape=circle, width=0.14, label="", fillcolor="#333333", color="#333333"];
+    d_none  [label="None\lno drift recorded\l", fillcolor="#ece3fb", color="#6b46c1"];
+    d_pend  [label="PENDING_REVIEW", fillcolor="#e6d6fb", color="#6b46c1"];
+    d_res   [label="RESOLVED", fillcolor="#d7c4f7", color="#6b46c1"];
+    d_start -> d_none;
+    d_none  -> d_pend [label="backend writes on drift\l+ AI classification\l"];
+    d_pend  -> d_res  [label="write_drift_aspect --resolve\l(alongside re-cert seal)\l"];
+    d_res   -> d_pend [label="new drift re-opens", constraint=false, color="#c0272d", fontcolor="#c0272d"];
+  }
+  d_note [shape=note, fontsize=9, fillcolor="#fffbe6", color="#b8860b",
+    label="Display can be stale or hand-edited and the gate is\lunaffected — it reads only the verdict.\lEditing RESOLVED here certifies NOTHING.\l"];
+  d_res -> d_note [style=dashed, arrowhead=none, color="#b8860b"];
+
+  // ================= BOUNDARY CASES =================
+  bcases [shape=note, fillcolor="#eef7ef", color="#2f7d3a", fontsize=9,
+    label=<<b>BOUNDARY CASES (observed live)</b><br align="left"/><br align="left"/>1. Source restored WITHOUT re-seal: stored = verified but check = UNVERIFIED. The stored<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;verdict can disagree with live state until the next enforce/seal; only a round-trip<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;check reveals it.<br align="left"/>2. Anchors sealed before the provenance change have no sealed_by / seal_event_id.<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;ABSENT is not EMPTY — readers tolerate absence.<br align="left"/>3. datetime fields cannot hold empty-string — omit to clear; "" returns 400.<br align="left"/>4. Quality anchor: latestJobEndTime may be absent even on an ACTIVE passing scan;<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;endTime -&gt; createTime -&gt; skip. Never fingerprint a None timestamp.<br align="left"/>5. Semantic drift pins drifted_hash; triage refuses to advise if the current text no<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;longer matches the pin (atomicity gate).<br align="left"/>6. Technical drift voids the whole certification — semantic and quality were certified<br align="left"/>&nbsp;&nbsp;&nbsp;&nbsp;AGAINST that schema.<br align="left"/>>];
+  v_unv -> bcases [style=invis];
+}

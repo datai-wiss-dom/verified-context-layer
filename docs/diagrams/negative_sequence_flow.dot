@@ -1,0 +1,75 @@
+// VCL — Negative-Path / Threat-Block Flow (Graphviz DOT)
+// Render: dot -Tsvg negative_flow.dot -o negative_flow.svg
+// Every attempt is BLOCKED. Evidence tier is explicit:
+//   PROVEN (live)  = observed live (a real 403 / a real run)
+//   by grant       = true by IAM/structure inspection, not a live observation
+//   RESIDUAL       = an honest, stated gap (amber)
+// Fix vs the mermaid draft: scenario 4 relabelled "by grant" (it was not observed live
+// the way scenario 5's 403 was).
+digraph negative_flow {
+  rankdir=TB;
+  graph [fontname="Helvetica", labelloc="t", fontsize=17,
+         label="VCL — Negative-Path / Threat-Block Flow  (every path is BLOCKED)",
+         pad=0.4, nodesep=0.45, ranksep=0.55, splines=spline];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", margin="0.18,0.11"];
+  edge  [fontname="Helvetica", fontsize=9];
+
+  // colour roles
+  //   attempt  amber   #fdf0d5
+  //   blocked  green   #d7efdb
+  //   failsafe green   #e7f6ea
+  //   residual amber   #fff3cd
+
+  subgraph cluster_1 {
+    label="1 — Agent fabricates a schema after a withhold"; fontsize=11; style="rounded"; color="#c0272d";
+    a1 [label="Wrapper WITHHOLDS + 'do not infer or fabricate';\lagent invents SQL anyway\l", fillcolor="#fdf0d5", color="#b8860b"];
+    o1 [label="REFUSED — enforcement is in the TOOL, not the prompt\l(PROVEN: two-run demo)\l", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a1 -> o1 [label="action tool reads the verdict\lindependently → unverified\l"]; }
+  }
+  subgraph cluster_2 {
+    label="2 — Agent targets PII directly, bypassing context"; fontsize=11; style="rounded"; color="#c0272d";
+    a2 [label="Agent: SELECT email FROM customers", fillcolor="#fdf0d5", color="#b8860b"];
+    o2 [label="REFUSED — out of scope (only customers_safe + orders\lreachable); a 3rd guard also rejects any email-column SQL\l", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a2 -> o2 [label="tool scope check +\l\\bemail\\b regex guard\l"]; }
+  }
+  subgraph cluster_3 {
+    label="3 — Someone hand-edits the DISPLAY aspect to RESOLVED"; fontsize=11; style="rounded"; color="#c0272d";
+    a3 [label="Governance Drift set to RESOLVED,\lthen agent calls lookup_context\l", fillcolor="#fdf0d5", color="#b8860b"];
+    o3 [label="WITHHELD — display state cannot certify anything", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a3 -> o3 [label="gate reads the verification\laspect ONLY → still unverified\l"]; }
+  }
+  subgraph cluster_4 {
+    label="4 — LLM advice tries to influence the verdict"; fontsize=11; style="rounded"; color="#c0272d";
+    a4 [label="Triage wants to change source_tier", fillcolor="#fdf0d5", color="#b8860b"];
+    o4 [label="advice cannot reach the gate\l(BY GRANT: wrapper SA has no datastore.user)\l", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a4 -> o4 [label="triage is a separate file + SA; never calls\lseal/enforce; writes ADVICE to Firestore only\l"]; }
+  }
+  subgraph cluster_5 {
+    label="5 — Triage SA tries to write outside its store"; fontsize=11; style="rounded"; color="#c0272d";
+    a5 [label="Triage SA: write to a different\lFirestore database\l", fillcolor="#fdf0d5", color="#b8860b"];
+    o5 [label="403 PERMISSION_DENIED\l(PROVEN: live 403 against a throwaway DB)\l", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a5 -> o5 [label="IAM condition scopes datastore.user\lto the vcl-audit database only\l"]; }
+  }
+  subgraph cluster_6 {
+    label="6 — Substantive drift, steward wants one click"; fontsize=11; style="rounded"; color="#c0272d";
+    a6 [label="Open the walkthrough and\lone-click re-certify\l", fillcolor="#fdf0d5", color="#b8860b"];
+    o6 [label="No seal command EXISTS in the substantive walkthrough —\lthe action is physically absent, not conditionally hidden\l", fillcolor="#d7efdb", color="#2f7d3a"];
+    { rank=same; a6 -> o6 [label="separate file,\lby construction\l"]; }
+  }
+  subgraph cluster_7 {
+    label="7 — Failure modes degrade SAFE, not open"; fontsize=11; style="rounded"; color="#2f7d3a";
+    a7 [label="Something fails or is missing", fillcolor="#fdf0d5", color="#b8860b"];
+    o7 [label="• audit write fails → advice still prints, exit 0 (PROVEN)\l• AI classification missing/unknown → alert defaults to the\l&nbsp;&nbsp;SUBSTANTIVE walkthrough (no seal command). Fail-safe.\l• current text ≠ drifted_hash → triage REFUSES (atomicity)\l", fillcolor="#e7f6ea", color="#2f7d3a"];
+    { rank=same; a7 -> o7 [label="fail-safe, not fail-open"]; }
+  }
+  subgraph cluster_8 {
+    label="KNOWN RESIDUAL — stated, not hidden"; fontsize=11; style="rounded"; color="#b8860b";
+    a8 [label="Principal WITH dataplex write access", fillcolor="#fff3cd", color="#b8860b"];
+    o8 [label="Can edit the verification aspect directly in the console.\lVCL constrains its OWN components structurally; it does NOT\lreplace catalog IAM. Mitigation = least-privilege on the\laspect, not code.\l", fillcolor="#fff3cd", color="#b8860b"];
+    { rank=same; a8 -> o8 [label="out of VCL's structural scope"]; }
+  }
+
+  // stack the rows top -> bottom
+  edge [style=invis];
+  a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8;
+}
