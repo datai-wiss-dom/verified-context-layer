@@ -8,8 +8,6 @@
 
 
 ## Active Context (read these for current work)
-@.claude/current/lesson.md
-@.claude/current/exercise.md
 @.claude/current/plan.md
 
 ## Handoff from Antigravity
