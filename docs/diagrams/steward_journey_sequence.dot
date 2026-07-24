@@ -1,21 +1,24 @@
 // VCL — Steward Journey (Graphviz DOT; a top-down journey, not a literal UML sequence)
 // Render: dot -Tsvg steward_journey_sequence.dot -o steward_journey_sequence.svg
 //
-// Corrections vs the mermaid draft (verified against the code):
-//  * enforce writes ONLY the verdict (verification.source_tier) + emits the log. It does
-//    NOT write the Governance Drift aspect and does NOT do AI classification (INV-1).
-//    The display aspect + cosmetic/substantive classification come from a SEPARATE advisory
-//    path: vcl_triage.py (LLM) classifies; write_drift_aspect.py writes the display aspect.
+// Verified against the code. Key structural facts:
+//  * enforce writes ONLY the verdict (verification.source_tier) + emits the log. It does NOT
+//    write the Governance Drift aspect and does NOT classify (INV-1). The display aspect +
+//    cosmetic/substantive classification come from a SEPARATE advisory path: vcl_triage.py
+//    (LLM) classifies; write_drift_aspect.py writes the display aspect.
 //  * seal writes ONLY verified + provenance. RESOLVED is a SEPARATE chained step
 //    (write_drift_aspect.py --resolve), not seal.
-//  * The Monitoring alert deep-links the COSMETIC walkthrough statically; the entry's AI
-//    classification is the steward's guard. (Dynamic routing was drift_watcher.py, superseded.)
+//  * ROUTING (restored fail-safe): the Monitoring alert deep link targets the SUBSTANTIVE
+//    walkthrough — the file with NO re-certify command. EVERY alert lands there first. The
+//    re-certify command is reached ONLY via an onward LINK (a link, not a command) after the
+//    steward reads the classification. Structural, not a warning. (Dynamic routing used to
+//    live in drift_watcher.py, superseded; this restores the default-safe behaviour.)
 // Colour: blue = deterministic VERDICT (vcl.py); purple = advisory DISPLAY; green = gate;
 //         gold = steward/action; red = withheld.
 digraph steward_journey {
   rankdir=TB;
   graph [fontname="Helvetica", labelloc="t", fontsize=17,
-         label="VCL — Steward Journey  (drift → alert → SEE → ACT → deliver)",
+         label="VCL — Steward Journey  (drift → alert → SEE → REVIEW → deliver)",
          pad=0.4, nodesep=0.5, ranksep=0.6, splines=spline];
   node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", margin="0.17,0.10"];
   edge  [fontname="Helvetica", fontsize=9, color="#444"];
@@ -33,24 +36,27 @@ digraph steward_journey {
   block [label=<<b>Meanwhile — agents are already blocked</b><br align="left"/>Agent → wrapper lookup_context → wrapper reads the verdict → unverified<br align="left"/>→ WITHHOLD + honest note ("do not infer or fabricate")<br align="left"/>the action tool ALSO refuses on the verdict — two structural layers<br align="left"/>>, fillcolor="#dcf3e2", color="#2f7d3a"];
 
   // --- alert + steward SEE ---
-  alert [label="Logging → Monitoring policy 'VCL Drift Detected'\l→ Slack + email:  SEE url  +  ACT deep link\l(deep link is STATIC → cosmetic walkthrough)\l", fillcolor="#eef0f2", color="#556"];
-  see   [label="Steward — 1. SEE: open the entry\lreads which dimension drifted, AI reasoning, recommendation\l(from the display aspect)\l", fillcolor="#fdf0d5", color="#b8860b"];
+  alert [label="Logging → Monitoring policy 'VCL Drift Detected'\l→ Slack + email:  SEE url  +  REVIEW deep link\l→ walkthrough_substantive.md  (safe default: NO re-certify command)\l", fillcolor="#eef0f2", color="#556"];
+  see   [label="Steward — 1. SEE: open the entry\lreads which dimension drifted + the AI cosmetic/substantive assessment\l", fillcolor="#fdf0d5", color="#b8860b"];
 
-  decision [shape=diamond, label="AI classification?\l(shown on the entry)", fillcolor="#fff3cd", color="#b8860b", margin="0.05,0.02"];
+  // --- ACT lands on the substantive (no-seal) walkthrough by default ---
+  actsub [label=<<b>2. REVIEW — the deep link opens the SUBSTANTIVE walkthrough</b><br align="left"/>EVERY alert lands here first. This file has NO re-certify command.<br align="left"/>The re-certify command is reachable ONLY via the onward link below,<br align="left"/>after the steward reads the classification — structural, not a warning.<br align="left"/>>, fillcolor="#fdf0d5", color="#b8860b"];
 
-  // cosmetic branch
-  c1 [label="2. ACT — open the cosmetic walkthrough\lguidance + seal command (copy to Cloud Shell)\l", fillcolor="#fdf0d5", color="#b8860b"];
+  decision [shape=diamond, label="AI assessment?\l(read on the entry)", fillcolor="#fff3cd", color="#b8860b", margin="0.05,0.02"];
+
+  // cosmetic branch — reached only via the onward LINK
+  onward [label="onward LINK (a link, not a command)\l→ opens steward/walkthrough_cosmetic.md\l", fillcolor="#fdf0d5", color="#b8860b", style="rounded,filled,dashed"];
   c2 [label="vcl.py seal  (steward AUTHORIZES, engine CERTIFIES)\lverification = verified + sealed_by + seal_event_id\l— VERDICT ONLY\l", fillcolor="#dbe4ff", color="#3355aa"];
   c3 [label="… && write_drift_aspect.py --resolve\lGovernance Drift = RESOLVED\l— DISPLAY ONLY, a SEPARATE chained step (not seal)\l", fillcolor="#ece3fb", color="#6b46c1"];
 
   // substantive branch
-  s1 [label="2. ACT — substantive walkthrough (separate file)\lseal command is PHYSICALLY ABSENT — no one-click re-cert\linvestigate: which rule changed, confirm with the owner\l", fillcolor="#fdf0d5", color="#b8860b"];
-  s2 [label="stays UNVERIFIED — context remains withheld\luntil the change is resolved\l", fillcolor="#f6d6d6", color="#c0272d"];
+  s1 [label="substantive: investigate — which rule changed, confirm with the owner\lNO re-certify command exists on this path\l", fillcolor="#fdf0d5", color="#b8860b"];
+  s2 [label="stays UNVERIFIED — context remains withheld\luntil the change is resolved (the safe default)\l", fillcolor="#f6d6d6", color="#c0272d"];
 
   deliver [label="Agent retry → wrapper reads verdict → verified\l→ DELIVER full governed context\l", fillcolor="#dcf3e2", color="#2f7d3a"];
 
   footer [shape=note, fontsize=9, fillcolor="#fffbe6", color="#b8860b",
-    label="The human AUTHORIZES; the deterministic engine CERTIFIES —\lno status field is ever hand-flipped. The VERDICT (verification aspect)\land the DISPLAY (governance-drift aspect) are written by DIFFERENT components.\l"];
+    label="The human AUTHORIZES; the deterministic engine CERTIFIES — no status field is ever\lhand-flipped. The VERDICT (verification aspect) and the DISPLAY (governance-drift aspect)\lare written by DIFFERENT components. Every alert defaults to the no-seal file; the seal is\lreachable only after passing through the file that requires reading the classification.\l"];
 
   // --- spine ---
   src  -> enf1 [label="edit / scan fails"];
@@ -58,9 +64,10 @@ digraph steward_journey {
   enf2 -> enf3;
   enf3 -> alert;
   alert -> see [label="steward notified"];
-  see  -> decision;
-  decision -> c1 [label="cosmetic"];
-  c1 -> c2 [label="run the command"];
+  see  -> actsub;
+  actsub -> decision;
+  decision -> onward [label="cosmetic"];
+  onward -> c2 [label="run the command"];
   c2 -> c3 [label="chained (&&)"];
   c3 -> deliver [label="verified → context flows again"];
   decision -> s1 [label="substantive / unknown"];
