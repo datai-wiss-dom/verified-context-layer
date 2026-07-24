@@ -1,0 +1,88 @@
+// Repository <-> Cloud Architecture Mapping (Graphviz DOT)
+// Render: dot -Tsvg repo_cloud_mapping.dot -o repo_cloud_mapping.svg
+// Source: the verified Step-1 inventory (read from actual .tf files + scripts).
+// Red border = LOAD-BEARING (path cannot move): pushed deep link, terraform file() refs,
+// live terraform state. Solid edge = provisioning; dashed = runtime/script.
+digraph repo_cloud_mapping {
+  rankdir=LR;
+  graph [fontname="Helvetica", labelloc="t", fontsize=17,
+         label="VCL — Repository ↔ Cloud Architecture Mapping",
+         nodesep=0.6, ranksep=2.4, splines=polyline, compound=true, pad=0.35];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled",
+         margin="0.16,0.09", color="#334455", fillcolor="#ffffff"];
+  edge  [fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_repo {
+    label="Repository (directories)"; fontsize=14; style="rounded,filled";
+    fillcolor="#eef2ff"; color="#3355aa"; margin=16;
+    node [fillcolor="#dbe4ff", color="#3355aa"];
+    r_infra   [label="infra/"];
+    r_src     [label="src/\lvcl.py · wrapper · triage\l"];
+    r_demo    [label="vcl_audience_demo/"];
+    // load-bearing (red)
+    r_setup   [label="setup/",   color="#c0272d", penwidth=2.2];
+    r_deploy  [label="deploy/",  color="#c0272d", penwidth=2.2];
+    r_audit   [label="audit/",   color="#c0272d", penwidth=2.2];
+    r_steward [label="steward/", color="#c0272d", penwidth=2.2];
+    r_schemas [label="schemas/*.json", color="#c0272d", penwidth=2.2];
+    r_wt      [label="steward/walkthrough_*.md", color="#c0272d", penwidth=2.2];
+  }
+
+  subgraph cluster_cloud {
+    label="Google Cloud (us-central1 unless noted)"; fontsize=14; style="rounded,filled";
+    fillcolor="#eefaf0"; color="#2f7d3a"; margin=16;
+    node [fillcolor="#dcf3e2", color="#2f7d3a"];
+    c_bq      [label="BigQuery\lecommerce + ecommerce_views\l", shape=cylinder];
+    c_scan    [label="Dataplex DQ scan\lcustomers-quality\l"];
+    c_vaspect [label="Aspect-type: verification"];
+    c_gaspect [label="Aspect-type: governance-drift"];
+    c_dpc     [label="DP entry + aspect CONTENT\lverdict · overview · drift\l"];
+    c_sas     [label="Service accounts + IAM"];
+    c_ar      [label="Artifact Registry: vcl + image"];
+    c_run     [label="Cloud Run: vcl-wrapper"];
+    c_fs      [label="Firestore: vcl-audit"];
+    c_ps      [label="Pub/Sub: topic + sub\l(global)\l"];
+    c_mon     [label="Monitoring: policy + channels\l(global)\l"];
+    c_log     [label="Cloud Logging: logs/vcl-drift\l(global)\l"];
+    c_sm      [label="Secret Manager: slack secrets\l(multi-region)\l"];
+    c_vertex  [label="Vertex AI: gemini-2.5-flash"];
+  }
+
+  // ---- provisioning edges (solid, dark) ----
+  edge [color="#333333", fontcolor="#333333", style=solid];
+  r_setup   -> c_bq       [label="terraform apply"];
+  r_setup   -> c_scan     [label="terraform apply"];
+  r_setup   -> c_vaspect  [label="terraform apply"];
+  r_setup   -> c_sas      [label="terraform apply"];
+  r_schemas -> c_vaspect  [label="terraform file()"];
+  r_schemas -> c_gaspect  [label="terraform file()"];
+  r_deploy  -> c_run      [label="terraform apply"];
+  r_deploy  -> c_ar       [label="terraform apply"];
+  r_audit   -> c_fs       [label="terraform apply"];
+  r_steward -> c_gaspect  [label="terraform apply"];
+  r_steward -> c_ps       [label="terraform apply"];
+
+  // ---- provisioning via script/gcloud (dashed, dark) ----
+  edge [color="#333333", fontcolor="#333333", style=dashed];
+  r_setup   -> c_bq       [label="bq load script"];
+  r_setup   -> c_dpc      [label="curl REST script"];
+  r_deploy  -> c_ar       [label="gcloud builds submit"];
+  r_infra   -> c_mon      [label="gcloud"];
+  r_infra   -> c_sm       [label="gcloud ad-hoc"];
+
+  // ---- runtime edges (blue, dashed) ----
+  edge [color="#2b6cb0", fontcolor="#2b6cb0", style=dashed];
+  r_src     -> c_dpc      [label="runtime: seal writes verdict"];
+  r_src     -> c_log      [label="runtime: logging write"];
+  r_src     -> c_fs       [label="runtime: triage write"];
+  r_src     -> c_vertex   [label="runtime: triage call"];
+  r_src     -> c_run      [label="deployed on"];
+  c_run     -> c_dpc      [label="runtime: read verdict only"];
+  r_steward -> c_dpc      [label="runtime: seal + display aspect"];
+  r_demo    -> c_run      [label="runtime: MCP/HTTPS"];
+  r_demo    -> c_bq       [label="runtime: safe views"];
+
+  // ---- the load-bearing deep link ----
+  edge [color="#c0272d", fontcolor="#c0272d", style=bold];
+  r_wt      -> r_steward  [label="pushed Cloud Shell deep link"];
+}

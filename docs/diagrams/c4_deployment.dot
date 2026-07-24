@@ -1,0 +1,69 @@
+// VCL — Deployment View (C4-style), Graphviz DOT
+// Render: dot -Tsvg c4_deployment.dot -o c4_deployment.svg
+// Source: the verified Step-1 inventory. Clusters = deployment nodes / trust boundary.
+// Colour: amber/purple = ON-DEMAND SCRIPT; green = DEPLOYED SERVICE; grey = managed.
+// UNVERIFIED items are labelled, not asserted.
+digraph c4_deployment {
+  rankdir=TB;
+  graph [fontname="Helvetica", labelloc="t", fontsize=17,
+         label="VCL — Deployment View  (subsystem · identity/SA · reads/writes · trust boundary)",
+         nodesep=0.55, ranksep=1.0, compound=true, pad=0.35, splines=spline];
+  node  [fontname="Helvetica", shape=box, style="rounded,filled", fontsize=10, margin="0.18,0.11"];
+  edge  [fontname="Helvetica", fontsize=9, color="#556"];
+
+  // ---------------- Operator workstation (on-demand scripts) ----------------
+  subgraph cluster_ws {
+    label="Operator workstation — local CLI · ON-DEMAND SCRIPTS"; fontsize=12;
+    style="rounded,filled"; fillcolor="#fbf3e6"; color="#b8860b"; margin=14;
+    node [fillcolor="#fdf0d5", color="#b8860b"];
+    validator [label=<<b>VALIDATOR</b> — vcl.py seal/check/enforce<br/><font point-size="9">identity: invoking operator · runs-as vcl-validator SA <b>UNVERIFIED</b><br/>writes: verification verdict · logs/vcl-drift<br/>reads: BQ etags · DQ scan · DP context&nbsp;&nbsp;·&nbsp;&nbsp;INV-1 / INV-2</font>>];
+    triage    [label=<<b>TRIAGE</b> — vcl_triage.py<br/><font point-size="9">identity: operator ADC · runs-as vcl-triage SA <b>UNVERIFIED</b><br/>writes: ONLY Firestore vcl-audit (never the verdict)<br/>reads: pinned drift text · calls Vertex&nbsp;&nbsp;·&nbsp;&nbsp;INV-3</font>>];
+    watcher   [label=<<b>WATCHER</b> — drift_watcher.py&nbsp;&nbsp;<font color="#c0272d">SUPERSEDED</font><br/><font point-size="9">identity: operator · reads verdict · publishes Pub/Sub</font>>];
+    demo      [label=<<b>DEMO agent</b> — vcl_audience_demo<br/><font point-size="9">identity: operator · naive about VCL<br/>calls the gate over MCP · queries BQ safe views</font>>];
+  }
+
+  // ---------------- Cloud Shell (steward) ----------------
+  subgraph cluster_cs {
+    label="Cloud Shell — browser · ON-DEMAND (steward)"; fontsize=12;
+    style="rounded,filled"; fillcolor="#f3eefb"; color="#6b46c1"; margin=14;
+    steward [fillcolor="#ece3fb", color="#6b46c1",
+             label=<<b>STEWARD re-cert</b> — walkthrough + write_drift_aspect.py<br/><font point-size="9">identity: the steward (their gcloud)<br/>runs vcl.py seal (verdict) · writes governance-drift display aspect<br/>opened by the pushed deep link</font>>];
+  }
+
+  // ---------------- GCP project — trust boundary ----------------
+  subgraph cluster_gcp {
+    label="Google Cloud project — TRUST BOUNDARY"; fontsize=13;
+    style="rounded,filled"; fillcolor="#eef4ff"; color="#3355aa"; margin=16;
+
+    subgraph cluster_run {
+      label="Cloud Run (us-central1) — DEPLOYED SERVICE"; fontsize=11;
+      style="rounded,filled"; fillcolor="#dcf3e2"; color="#2f7d3a"; margin=12;
+      gate [fillcolor="#c3ecce", color="#2f7d3a",
+            label=<<b>GATE</b> — vcl_wrapper.py<br/><font point-size="9">identity: SA vcl-wrapper-run (catalogViewer · dataProductsViewer · mcp.toolUser)<br/>READ-ONLY · reads verification aspect only · writes nothing<br/>delivers iff source_tier = verified, else withholds&nbsp;&nbsp;·&nbsp;&nbsp;INV-4 / 5 / 6</font>>];
+    }
+
+    subgraph cluster_mgd {
+      label="Managed GCP services"; fontsize=11; style="rounded,filled";
+      fillcolor="#eef0f2"; color="#667"; margin=12;
+      node [fillcolor="#e3e7ec", color="#667"];
+      catalog  [label=<<b>Knowledge Catalog / Dataplex</b><br/><font point-size="9">DP entry + verification / governance-drift / overview aspects · customers-quality scan</font>>];
+      bq       [shape=cylinder, label=<<b>BigQuery</b><br/><font point-size="9">ecommerce base + ecommerce_views (customers_safe, PII-safe)</font>>];
+      auditdb  [shape=cylinder, label=<<b>Firestore vcl-audit</b><br/><font point-size="9">collection vcl_triage_audit · triage SA scoped to this DB only</font>>];
+      alerting [label=<<b>Monitoring + Logging + Secret Manager</b><br/><font point-size="9">logs/vcl-drift → policy 'VCL Drift Detected' → Slack + email · slack secrets</font>>];
+      vertex   [label=<<b>Vertex AI</b><br/><font point-size="9">gemini-2.5-flash</font>>];
+    }
+  }
+
+  // ---------------- relationships (reads / writes) ----------------
+  validator -> catalog  [label="write verdict / read anchors"];
+  validator -> bq       [label="read etags"];
+  validator -> alerting [label="emit VCL_DRIFT_DETECTED"];
+  gate      -> catalog  [label="read verdict only"];
+  demo      -> gate     [label="lookup_context (MCP)"];
+  demo      -> bq       [label="query safe views"];
+  triage    -> vertex   [label="classify"];
+  triage    -> auditdb  [label="append advice"];
+  steward   -> catalog  [label="seal + display aspect"];
+  watcher   -> catalog  [label="read verdict", style=dashed];
+  alerting  -> steward  [label="alert: SEE url + deep link", color="#c0272d", fontcolor="#c0272d", penwidth=1.6];
+}
