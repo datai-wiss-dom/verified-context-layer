@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # The three VCL identities and their LEAST-PRIVILEGE roles (the production hardening seam
 # documented in the reference build). The local demo runs under the operator's own creds;
 # these SAs exist so the trust/plane boundary is real infrastructure, not just prose:

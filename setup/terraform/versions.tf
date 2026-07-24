@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Provider + version pins. Terraform owns STATIC schema + infra; VCL owns the DYNAMIC
 # verification state (aspect values written by vcl.py seal at runtime). The one thing the
 # provider cannot do — write aspect CONTENT / create the Data Product / load data — is

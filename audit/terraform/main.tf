@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # PHASE: triage audit store. Additive infra ONLY — a dedicated Firestore database for the
 # triage's append-only advice log, plus datastore.user for the TRIAGE SA scoped to that
 # database. Nothing here touches the verdict, the gate, vcl.py, or the wrapper (INV-3).

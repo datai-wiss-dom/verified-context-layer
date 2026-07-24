@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # STEP 0 — enable every API the substrate needs, on a possibly-EMPTY project. Apply this
 # FIRST (see SETUP.md), then let it propagate before anything that consumes it.
 #

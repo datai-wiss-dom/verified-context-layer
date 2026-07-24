@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # All identifiers via tfvars (gitignored). No hardcoded project/number/email.
 
 variable "project_id" {

@@ -16,6 +16,7 @@ Usage:
       --reasoning "..." --recommendation "review carefully before re-certifying"
 Config (project, dp, etc.) comes from the repo-root .env.
 """
+# Author: Wissem Khlifi · July 2026
 import argparse
 import json
 import os

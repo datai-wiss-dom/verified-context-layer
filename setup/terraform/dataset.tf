@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Two datasets, both in var.location:
 #   base_dataset  — native base tables (customers, orders), loaded by 01_load_data.sh
 #   views_dataset — governed views (customers_safe, orders), created in views.tf

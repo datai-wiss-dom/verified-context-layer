@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Deploy the VCL wrapper as a Cloud Run service with a dedicated, least-privilege,
 # Dataplex READ-ONLY service account. Validator + triage are out of scope here.
 #

@@ -1,4 +1,5 @@
 # VCL Control Plane — Design
+**Author:** Wissem Khlifi · July 2026
 
 > **Status: SPECIFIED, NOT BUILT.** This is a design specification only. No control-plane
 > code, Terraform, or scaffolding exists, and none should be created from this document.

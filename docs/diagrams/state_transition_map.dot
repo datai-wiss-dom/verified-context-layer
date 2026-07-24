@@ -1,3 +1,4 @@
+// Author: Wissem Khlifi · July 2026
 // VCL — State Transition Map (Graphviz DOT)
 // Render: dot -Tsvg state_transition_map.dot -o state_transition_map.svg
 // Two INDEPENDENT state machines:

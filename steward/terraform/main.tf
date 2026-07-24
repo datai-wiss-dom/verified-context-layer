@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Steward workflow infra. Terraform owns the STATIC schema (the Governance Drift
 # aspect-TYPE). The aspect CONTENT is written by a script (steward/bin/write_drift_aspect.sh),
 # because the provider cannot write aspect content (ARCHITECTURE §4).

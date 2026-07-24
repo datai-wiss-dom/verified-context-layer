@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Data-quality scan on the native base `customers` table (PHASE 2 — the table must exist).
 # Three rules, INVERTED logic: each SQL assertion PASSES when it finds ZERO bad rows.
 # ${data()} is the scan's bound table — it is escaped as $${data()} so Terraform passes it

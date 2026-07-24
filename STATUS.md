@@ -1,4 +1,5 @@
 # VCL — Status
+**Author:** Wissem Khlifi · July 2026
 
 _Companion to [README.md](README.md); see the repository map there. Updated 2026-07-23._
 

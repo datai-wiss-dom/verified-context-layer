@@ -1,3 +1,4 @@
+# Author: Wissem Khlifi · July 2026
 # Governed views (PHASE 2 — apply AFTER 01_load_data.sh, because BigQuery validates a
 # view's query against its base table at create time).
 #

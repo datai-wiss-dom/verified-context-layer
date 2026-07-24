@@ -1,4 +1,5 @@
 # DEPLOY — VCL wrapper on Cloud Run (Terraform)
+**Author:** Wissem Khlifi · July 2026
 
 Deploys `src/vcl_wrapper.py` as a Cloud Run service with a **dedicated, least-privilege,
 Dataplex read-only** service account. Validator job + triage are **out of scope**.
